@@ -1,0 +1,25 @@
+.question {
+  input {
+    &[type='radio'],
+    &[type='checkbox'] {
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+      border-color: black;
+      border-width: 1px;
+
+      &:checked {
+        border-color: black;
+      }
+    }
+
+    &[type='checkbox']:checked {
+      @include checkbox-checked-style(black, transparent);
+
+      background-position: -1px;
+    }
+
+    &[type='radio']:checked {
+      @include radio-checked-style(black);
+    }
+  }
+}

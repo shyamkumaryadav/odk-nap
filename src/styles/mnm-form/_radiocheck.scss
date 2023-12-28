@@ -1,0 +1,125 @@
+@mixin disabled {
+  &:disabled,
+  &[readonly] {
+    @include disabled-radiocheck-style;
+  }
+}
+
+/* The `@mixin radiocheck-setup` is a Sass mixin that defines the common styles for radio buttons and
+checkboxes. */
+@mixin radiocheck-setup {
+  @include appearance-none;
+
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin-right: 20px;
+  margin-bottom: 0;
+  margin-top: 2px;
+  border-width: 3px;
+  border-style: solid;
+  border-radius: 0;
+  background-color: transparent;
+}
+
+.option-wrapper {
+  line-height: 20px;
+}
+
+/* The `@mixin checkbox-setup` is a Sass mixin that defines the styles for checkboxes. */
+@mixin checkbox-setup {
+  @include appearance-none;
+
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin-right: 20px;
+  margin-bottom: 0;
+  margin-top: 1.5px;
+  border-width: 3px;
+  border-style: solid;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.option-wrapper {
+  line-height: 20px;
+}
+
+/* The `.question` class is defining the styles for radio buttons and checkboxes within a question
+element. */
+.question {
+  input[type='radio'] {
+    @include radiocheck-setup;
+
+    @include radio-unchecked-style;
+
+    @include disabled;
+
+    @include radiocheck-focus;
+
+    border-radius: 10px;
+
+    &:checked {
+      @include radio-checked-style;
+
+      @include radiocheck-focus;
+    }
+  }
+
+  input[type='checkbox'] {
+    @include checkbox-setup;
+
+    @include checkbox-unchecked-style;
+
+    @include disabled;
+
+    @include radiocheck-focus;
+
+    border-color: $neutral-Gray-200;
+
+    &:checked {
+      @include checkbox-checked-style;
+
+      @include radiocheck-focus;
+      background-image: url('data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20stroke%3D%27%23FFF%27%20fill%3D%27%23FFF%27%20width%3D%2732%27%20height%3D%2732%27%20viewBox%3D%270%200%2032%2032%27%3E%3Cpath%20d%3D%27M25.1%2012.5l-3.4-3.3-8%208-2.9-3-3.4%203.4%206.3%206.3z%27%2F%3E%3C%2Fsvg%3E');
+      background-color: $brand-primary-color !important;
+      background-size: contain;
+    }
+  }
+}
+
+// tweak for touchscreens
+.touch .question.simple-select {
+  .option-wrapper {
+    & > label {
+      border: unset;
+      border-radius: 0;
+    }
+    .option-label {
+      //TODO: do not yet know why this correction is necessary
+      margin-left: 38px;
+    }
+  }
+}
+
+// tweaks for rtl display
+.or[dir='rtl'],
+[dir='rtl'] .form-footer {
+  .question {
+    input[type='checkbox'],
+    input[type='radio'] {
+      margin-right: 0;
+      margin-left: 10px;
+    }
+  }
+}
+
+// tweaks for likert widget
+.or-appearance-likert .option-wrapper {
+  > label {
+    .option-label {
+      margin-top: -11.5px;
+    }
+  }
+}

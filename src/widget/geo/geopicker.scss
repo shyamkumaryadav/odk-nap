@@ -1,0 +1,16 @@
+.geopicker {
+  &-widget {
+    position: relative;
+    &-toggle-button {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: $neutral-Gray-200;
+    }
+  }
+  &-widget-input {
+    padding-right: 26px !important;
+  }
+}

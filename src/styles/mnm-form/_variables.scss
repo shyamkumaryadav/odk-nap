@@ -1,0 +1,38 @@
+// load this before the core/variables
+
+$font-size-base: 14px;
+$brand-primary-color: #93348e;
+$brand-secondary-color: lighten($brand-primary-color, 50%);
+$text-primary-color: #262626;
+$neutral-Grey: #bfbfbf; // input text placeholder color
+$neutral-Gray-100: #d9d9d9; // input date placeholder color
+$neutral-Gray-200: #595959; //checkbox border color
+$neutral-Gray-300: #262626; // options text color
+$red: #f5222d; // required color
+
+$repeat-bg: lighten($neutral-Gray-200, 55%);
+
+$input-height: 40px;
+$input-max-width: 100%;
+
+$input-color-placeholder: $neutral-Grey;
+$input-color: $text-primary-color;
+
+$radiocheck-unchecked-color: $brand-primary-color;
+$radiocheck-checked-color: lighten($brand-primary-color, 10%);
+$radio-disabled-opacity: 0.6;
+
+$checkbox-unchecked-color: $neutral-Gray-200;
+
+$note-bg: white;
+$note-border: 1px solid #e1e1e1;
+$note-border-radius: 0;
+$input-border-focus: $brand-primary-color;
+$input-border-focus-shadow: rgba(
+  red($input-border-focus),
+  green($input-border-focus),
+  blue($input-border-focus),
+  0.6
+);
+
+$input-border-focus-shadow: none;

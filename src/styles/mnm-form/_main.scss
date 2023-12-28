@@ -1,0 +1,182 @@
+@import "form-controls";
+
+.or-group {
+  border-top: none;
+}
+
+.or-group {
+  border-top: none;
+  margin: 1.25em 0 1.25em 0;
+
+  .or-group {
+    margin: 1.25em 0 1.25em 0;
+  }
+}
+
+.or,
+.or-group {
+  > h4 {
+    font-size: 18px;
+    font-weight: bold;
+    color: $text-primary-color;
+    margin-top: 0px;
+    margin-bottom: 0px;
+  }
+}
+
+.or-group:not(.or-appearance-no-collapse) {
+  > h4 {
+    margin-left: 0px;
+    &::before {
+      content: none;
+      margin-left: 0px;
+    }
+  }
+}
+
+.or {
+  .question-label {
+    font-weight: bold;
+    display: unset;
+  }
+}
+
+.option-wrapper {
+  gap: 10px;
+}
+
+/* The `.option-wrapper` class is defining the styles for a wrapper element that contains a label and
+an input element. */
+.option-wrapper {
+  > label {
+    font-family: Inter;
+    font-size: $font-size-base;
+    font-weight: 400;
+    color: $text-primary-color;
+    line-height: 21px;
+    letter-spacing: -0.28px;
+    padding: 0px;
+    margin: 0px;
+    &:hover:not(.filler) {
+      background-color: transparent;
+    }
+  }
+
+  .option-label {
+    margin-left: 38px;
+    margin-top: 0px !important; // input is floated to deal with multi-line labels
+  }
+}
+
+.option-wrapper {
+  label:has(input.readonly-forced) {
+    cursor: not-allowed;
+  }
+}
+
+.touch {
+  .question.simple-select {
+    .option-wrapper > label {
+      background-color: transparent;
+      border: none;
+      margin: 0px;
+      padding: 0px;
+    }
+  }
+  select {
+    padding: 11px 19px 11px 10px;
+    box-shadow: none;
+    transition: none;
+    &:focus {
+      --tw-ring-color: transparent;
+    }
+  }
+}
+
+/* The `.question` class is defining the styles for a question element in a form. */
+.question {
+  display: block;
+  margin: 0px;
+  padding-top: 20px;
+  border: none;
+  position: relative;
+}
+
+/* The `.question input` block of code is defining the styles for input elements within a question
+element in a form. It sets different styles for different types of input elements. */
+.question input {
+  &[type="date"],
+  &[type="month"],
+  &[type="datetime-local"],
+  &[type="number"],
+  &[type="time"],
+  &[type="text"].mask-date {
+    width: -webkit-fill-available;
+    width: -moz-fill-available;
+    color: $text-primary-color !important;
+    border: 1px solid $neutral-Gray-100;
+    padding: 11px 19px 11px 10px;
+    border-radius: 8px;
+    font-size: $font-size-base;
+  }
+
+  &[type="text"],
+  &[type="tel"],
+  &[type="password"],
+  &[type="url"],
+  &[type="email"],
+  &[type="file"] {
+    width: -webkit-fill-available;
+    width: -moz-fill-available;
+    border: 1px solid $neutral-Gray-100;
+    padding: 11px 19px 11px 10px;
+    border-radius: 8px;
+    font-size: $font-size-base;
+  }
+}
+
+/* The code `.question.simple-select` is targeting a question element with the class "simple-select".
+Within that element, it is targeting the label element within the `.option-wrapper` class. It then
+targets the input elements with the type "radio" and "checkbox" that are descendants of the label
+element. */
+.question.simple-select {
+  .option-wrapper > label {
+    input[type="radio"],
+    input[type="checkbox"] &:focus,
+    &:hover,
+    &:active {
+      background-color: transparent !important ;
+      --tw-ring-color: transparent;
+    }
+  }
+}
+
+/*targeting input elements within a question element in a form. It sets specific styles for
+input elements of type "radio" and "checkbox" when they are in focus or checked. */
+.question input {
+  &[type="radio"],
+  &[type="checkbox"]:focus,
+  &[type="checkbox"]:checked {
+    background-position: 0px !important;
+    background-color: transparent;
+    --tw-ring-color: transparent;
+  }
+}
+
+.question {
+  > fieldset {
+    padding: 0;
+    margin: 4px;
+    border: none;
+  }
+}
+
+.required {
+  position: static;
+  color: $red;
+  line-height: 1;
+}
+
+.or-repeat .repeat-number {
+  display: none;
+}

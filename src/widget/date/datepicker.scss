@@ -1,0 +1,21 @@
+@import "vanillajs-datepicker/sass/datepicker";
+
+.datepicker {
+  &-widget {
+    position: relative;
+    &-toggle-button {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: $neutral-Gray-200;
+    }
+    &-input {
+      padding-right: 26px !important;
+    }
+  }
+  &-controls {
+    justify-content: space-between;
+  }
+}
