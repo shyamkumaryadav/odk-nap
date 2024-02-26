@@ -7,7 +7,7 @@ from xlrd import FILE_FORMAT_DESCRIPTIONS
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
-xls_dir = os.path.join(base_dir, "ODK Format")
+xls_dir = os.path.join(base_dir, "XLS")
 
 xml_dir = os.path.join(base_dir, "public")
 
@@ -50,6 +50,10 @@ class MyHandler(FileSystemEventHandler):
 
 if __name__ == "__main__":
     event_handler = MyHandler()
+    if not os.path.exists(xls_dir):
+        os.makedirs(xls_dir)
+    if not os.path.exists(xml_dir):
+        os.makedirs(xml_dir)
     observer = Observer()
     observer.schedule(
         event_handler,

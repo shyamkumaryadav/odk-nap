@@ -4,13 +4,11 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-pyxform = "*"
-jinja2 = "*"
+pyxform = "==2.0.2"
 ptpython = "*"
-watchdog = "*"
-pypdf2 = "*"
+watchdog = "==4.0.0"
+pandas = "==2.0.0"
 openpyxl = "*"
-py-thumbnailer = "*"
 
 [dev-packages]
 

@@ -22,12 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-XML
-public
-ODK Format
-input.pdf
-main.py
-NOTE.txt
-**/*.xlsx
-**/*.py
-!wile.py
