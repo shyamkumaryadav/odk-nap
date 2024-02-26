@@ -31,7 +31,7 @@ jobs:
       - name: Setup Node.js environment
         uses: actions/setup-node@v3.8.1
       - name: build it
-        run: npm i && npm run build
+        run: yarn && yarn build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2
         with:
