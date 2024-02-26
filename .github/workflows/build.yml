@@ -23,19 +23,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup Pages
-        uses: actions/configure-pages@v3
+        uses: actions/configure-pages@v4
       - name: Set Time Zone
         run: sudo timedatectl set-timezone "Asia/Kolkata"
       - name: Setup Node.js environment
-        uses: actions/setup-node@v3.8.1
+        uses: actions/setup-node@v4
       - name: build it
         run: yarn && yarn build
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-pages-artifact@v3
         with:
           path: "dist"
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v2
+        uses: actions/deploy-pages@v4
