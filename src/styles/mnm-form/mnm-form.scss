@@ -15,6 +15,14 @@
   @import "enketo-core/src/sass/core/main";
   @import "enketo-core/src/sass/core/pages";
 
+  .form-header {
+    position: static;
+  }
+
+  .form-footer {
+    margin: 0;
+  }
+
   // Widgets
   // @import '@/widget/index.scss';
   @import "../../widget/index.scss";
