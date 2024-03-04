@@ -35,6 +35,24 @@ export async function init() {
   const div_ = document.createElement("div");
   div_.id = "mnm-form";
   div_.innerHTML =
+    `  <header class="form-header clearfix">
+    <div class="form-progress"></div>
+    <span class="form-language-selector hide"
+        ><span>Choose Language</span></span
+    >
+    <nav class="pages-toc hide" role="navigation">
+        <label for="toc-toggle"></label>
+        <input
+            type="checkbox"
+            id="toc-toggle"
+            class="ignore"
+            value="show"
+        />
+        <!-- this element can be placed anywhere, leaving it out will prevent running ToC-generating code -->
+        <ul class="pages-toc__list"></ul>
+        <div class="pages-toc__overlay"></div>
+    </nav>
+</header>` +
     result.form +
     ` <div class="form-footer">
     <button

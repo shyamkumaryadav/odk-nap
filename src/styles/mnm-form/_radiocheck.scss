@@ -13,7 +13,7 @@ checkboxes. */
   display: inline-block;
   width: 18px;
   height: 18px;
-  margin-right: 20px;
+  // margin-right: 20px;
   margin-bottom: 0;
   margin-top: 2px;
   border-width: 3px;
@@ -33,7 +33,7 @@ checkboxes. */
   display: inline-block;
   width: 18px;
   height: 18px;
-  margin-right: 20px;
+  // margin-right: 20px;
   margin-bottom: 0;
   margin-top: 1.5px;
   border-width: 3px;
@@ -49,7 +49,7 @@ checkboxes. */
 /* The `.question` class is defining the styles for radio buttons and checkboxes within a question
 element. */
 .question {
-  input[type='radio'] {
+  input[type="radio"] {
     @include radiocheck-setup;
 
     @include radio-unchecked-style;
@@ -67,7 +67,7 @@ element. */
     }
   }
 
-  input[type='checkbox'] {
+  input[type="checkbox"] {
     @include checkbox-setup;
 
     @include checkbox-unchecked-style;
@@ -82,7 +82,7 @@ element. */
       @include checkbox-checked-style;
 
       @include radiocheck-focus;
-      background-image: url('data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20stroke%3D%27%23FFF%27%20fill%3D%27%23FFF%27%20width%3D%2732%27%20height%3D%2732%27%20viewBox%3D%270%200%2032%2032%27%3E%3Cpath%20d%3D%27M25.1%2012.5l-3.4-3.3-8%208-2.9-3-3.4%203.4%206.3%206.3z%27%2F%3E%3C%2Fsvg%3E');
+      background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20stroke%3D%27%23FFF%27%20fill%3D%27%23FFF%27%20width%3D%2732%27%20height%3D%2732%27%20viewBox%3D%270%200%2032%2032%27%3E%3Cpath%20d%3D%27M25.1%2012.5l-3.4-3.3-8%208-2.9-3-3.4%203.4%206.3%206.3z%27%2F%3E%3C%2Fsvg%3E");
       background-color: $brand-primary-color !important;
       background-size: contain;
     }
@@ -104,11 +104,11 @@ element. */
 }
 
 // tweaks for rtl display
-.or[dir='rtl'],
-[dir='rtl'] .form-footer {
+.or[dir="rtl"],
+[dir="rtl"] .form-footer {
   .question {
-    input[type='checkbox'],
-    input[type='radio'] {
+    input[type="checkbox"],
+    input[type="radio"] {
       margin-right: 0;
       margin-left: 10px;
     }
@@ -122,4 +122,8 @@ element. */
       margin-top: -11.5px;
     }
   }
+}
+
+.or-appearance-horizontal-compact .option-wrapper {
+  gap: 2rem;
 }
