@@ -7,14 +7,14 @@ import pytz
 import sys
 import uuid
 from copy import copy
-from dateutil.parser import parse as date_parse
 from random import sample, randint, choice, random, shuffle
 from xml.etree import ElementTree as ET
 
 import lorem
 
-from pyxform.xls2json_backends import xls_to_dict
-from dicttoxml import dicttoxml
+from pyxform.xls2json import parse_file_to_json
+from pyxform.xform2json import convert_dict_to_xml
+
 
 from faker import Faker
 
@@ -28,17 +28,6 @@ def get_uuid():
 
 def get_instance_id(_uuid):
     return f"uuid:{_uuid}"
-
-
-def get_version_id(deployment_data):
-    return deployment_data["results"][0]["uid"]
-
-
-def get_version_string(deployment_data):
-    count = deployment_data["count"]
-    date_obj = date_parse(deployment_data["results"][0]["date_deployed"])
-    date_str = date_obj.strftime("%Y-%m-%d %H:%M:%S")
-    return f"{count} ({date_str})"
 
 
 def format_openrosa_datetime(dt=None):
@@ -72,32 +61,15 @@ def get_random_datetime(_type="datetime"):
         return format_openrosa_datetime(dt.date())
 
 
-def get_asset_details(asset):
+def get_submission_misc(_uuid):
     return {
-        "asset_uid": asset["uid"],
-        "version": get_version_string(asset["deployed_versions"]),
-    }
-
-
-def get_submission_misc(_uuid, deployment_data):
-    return {
-        "formhub": {"uuid": _uuid},
-        "__version__": get_version_id(deployment_data),
         "meta": {"instanceID": get_instance_id(_uuid)},
     }
 
 
 def get_submission_data(asset_content):
-    survey = asset_content["survey"]
-    asset_choices = asset_content.get("choices", [])
-    survey_choices = {}
-    for item in asset_choices:
-        ln = item["list_name"]
-        n = item["name"]
-        if ln not in survey_choices:
-            survey_choices[ln] = [n]
-        else:
-            survey_choices[ln].append(n)
+    survey = asset_content["children"]
+    asset_choices = asset_content.get("choices", {})
 
     result = {}
     for item in survey:
@@ -111,7 +83,7 @@ def get_submission_data(asset_content):
 
         choices = None
         if data_type in ["select_one", "select_multiple"]:
-            choices = survey_choices[item["select_from_list_name"]]
+            choices = asset_choices[item["select_from_list_name"]]
 
         res = ""
         # SELECT QUESTIONS
@@ -163,34 +135,36 @@ def get_submission_data(asset_content):
 
 def get_submission(_uuid, asset):
     return {
-        **get_submission_misc(_uuid, asset["deployed_versions"]),
-        **get_submission_data(asset["content"]),
+        **get_submission_misc(_uuid),
+        **get_submission_data(asset),
     }
 
 
 def prepare_submission(asset):
     _uuid = get_uuid()
 
-    asset_details = get_asset_details(asset)
     data = get_submission(_uuid, asset)
 
-    xml = ET.fromstring(dicttoxml(data, attr_type=False))
-    xml.tag = asset_details["asset_uid"]
-    xml.attrib = {
-        "id": asset_details["asset_uid"],
-        "version": asset_details["version"],
-    }
+    print(_uuid, data)
+
+    xml = convert_dict_to_xml(data)
+    # xml.tag = asset_details["asset_uid"]
+    # xml.attrib = {
+    #     "id": asset_details["asset_uid"],
+    #     "version": asset_details["version"],
+    # }
 
     return ET.tostring(xml), _uuid
 
 
 def main(asset, count=1):
-    asset = {}  # in JSON
     res_codes = []
     for _ in range(count):
         xml, _uuid = prepare_submission(asset)
         # file_tuple = (_uuid, io.BytesIO(xml))
         res_codes.append(_uuid)
+        with open(f"{_uuid}.xml", "wb") as f:
+            f.write(xml)
 
     print(f"{len(res_codes)} total Data generated.")
 
@@ -222,12 +196,10 @@ if __name__ == "__main__":
     args.path = os.path.abspath(args.path)
 
     try:
-        asset = xls_to_dict(args.path)
+        asset = parse_file_to_json(args.path)
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)
     print(f"Generating {args.count} submissions for {args.path}")
-
-    print(asset)
 
     main(asset, count=args.count)
