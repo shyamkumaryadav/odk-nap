@@ -9,6 +9,9 @@ ptpython = "*"
 watchdog = "==4.0.0"
 pandas = "==2.0.0"
 openpyxl = "*"
+faker = "*"
+lorem = "*"
+dicttoxml = "*"
 
 [dev-packages]
 

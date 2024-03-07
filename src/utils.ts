@@ -16,6 +16,10 @@ const btnClass = [
   "select-none",
 ];
 
+export const add_now = (el: Element) => {
+  el.innerHTML = "now() " + window.odk_form.model.evaluate("now()", "string");
+};
+
 export function setupLocalStorage(element: HTMLDivElement) {
   element.innerHTML = "";
   const reloadSpan = document.createElement("button");

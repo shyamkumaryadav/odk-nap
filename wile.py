@@ -34,6 +34,11 @@ class MyHandler(FileSystemEventHandler):
                     output_path,
                 ]
             )
+            if out == 0:
+                if os.name == "nt":
+                    import winsound
+
+                    winsound.MessageBeep(type=winsound.MB_OK)
             # get all xml files in xml_dir
             xml_files = [
                 ("(Error) " if out != 0 else "") + f

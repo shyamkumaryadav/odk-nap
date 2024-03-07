@@ -4,7 +4,7 @@ import { Form } from "enketo-core";
 import { transform } from "enketo-transformer/web";
 import "./styles/main.scss";
 
-import { xmlDebug, setupDropdown, setupLocalStorage } from "./utils";
+import { xmlDebug, setupDropdown, setupLocalStorage, add_now } from "./utils";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
 
@@ -12,17 +12,36 @@ setupDropdown(document.querySelector<HTMLDivElement>("#dropdown")!);
 setupLocalStorage(document.querySelector<HTMLDivElement>("#localstorage")!);
 xmlDebug();
 
-export async function init() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const form_url = urlParams.get("form");
+export async function init(
+  form_url = new URLSearchParams(window.location.search).get("form")
+) {
   if (!form_url) {
-    root.innerHTML = "Please select a form or set in url `?form=...`";
+    root.innerHTML = "set in url `?form=...` or Upload a valid XML File ";
+    // add a form input to upload a file of xml type get a blob url of file set in form_url
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".xml";
+    input.addEventListener("change", (e) => {
+      const file = (e.target as HTMLInputElement).files![0];
+      init(URL.createObjectURL(file));
+    });
+    root.appendChild(input);
     return;
   }
   const xform = await fetch(form_url)
-    .then((res) => res.text())
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error("Network response was not ok");
+      }
+      return res.text();
+    })
     .catch((err) => {
-      root.innerHTML = err + " Change the url to a valid form";
+      root.innerHTML =
+        err + " Change the url to a valid form click to hard reload page";
+      root.classList.add("text-red-500", "font-bold", "text-2xl");
+      root.addEventListener("click", () => {
+        window.location.search = "";
+      });
       return err;
     });
   const result = await transform({
@@ -166,22 +185,17 @@ export async function init() {
   window.odk_form = form;
 
   // add date in 'ISO 8601' format
-  document.querySelector("section.form-logo")!.innerHTML =
-    "now() " + window.odk_form.model.evaluate("now()", "string");
+  const form_logo = document.querySelector("section.form-logo");
+  if (form_logo) {
+    add_now(form_logo);
+    form_logo.addEventListener("click", () => {
+      add_now(form_logo);
+    });
+  }
 
   if (loadErrors.length > 0) {
     console.error(loadErrors);
   }
-
-  // document.addEventListener("xforms-value-changed", () => {
-  //   console.log(
-  //     form.model.evaluate("count(/data//*[. = 'yes'])", "number"),
-  //     form.model.evaluate(
-  //       "count(/data/*[. = 'yes']) + count(/data/*/*[. = 'yes']) +  count(/data/*/*/*[. = 'yes'])",
-  //       "number"
-  //     )
-  //   );
-  // });
 
   const submitButton = document.querySelector("#submit-page")!;
   submitButton.addEventListener("click", () => {
