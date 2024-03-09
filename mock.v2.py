@@ -41,11 +41,13 @@ def get_instance_id(_uuid):
 
 
 def format_openrosa_datetime(dt=None):
+    # 02:24:00.000+05:30, 14:24:00.000+05:30 if it's time
+    # 2024-03-09T02:27:00+05:30 if it's datetime
     dt = dt or datetime.datetime.now(tz=pytz.UTC)
     if isinstance(dt, datetime.datetime):
         return dt.isoformat("T", "milliseconds")
     elif isinstance(dt, datetime.time):
-        return dt.isoformat("milliseconds")
+        return dt.isoformat()
     elif isinstance(dt, datetime.date):
         return dt.isoformat()
     return str(dt)
@@ -61,14 +63,14 @@ def get_point():
 
 
 def get_random_datetime(_type="datetime"):
-    dt = faker.date_time_between(start_date="-30y", end_date="now")
-    dt = dt.astimezone(pytz.timezone(choice(pytz.all_timezones)))
+    dt = faker.date_time_between(start_date="-5y", end_date="now")
+    dt = dt.astimezone(pytz.timezone(faker.random_element(pytz.all_timezones)))
     if _type == "datetime":
         return format_openrosa_datetime(dt)
     if _type == "time":
-        return format_openrosa_datetime(dt.time())
+        return faker.time(pattern="%H:%M:%S.%f%z")
     if _type == "date":
-        return format_openrosa_datetime(dt.date())
+        return faker.date()
 
 
 def get_data(survey):
@@ -188,7 +190,9 @@ def main(asset, count=1, filename=None):
         xml, _uuid = prepare_submission(asset)
         res_codes.append(_uuid)
         if filename:
-            with open(f"public/{i}_{filename}.xml", "w+") as f:
+            if not os.path.exists(f"public/{filename}"):
+                os.makedirs(f"public/{filename}")
+            with open(f"public/{filename}/{i}.xml", "w+") as f:
                 f.write(xml)
     json.dump(
         asset,
