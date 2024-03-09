@@ -138,9 +138,8 @@ def generate_random_row(
         group_at_level.append(group)
         submission_xml += f"\n{spaces}<{group}>"
 
-    if survey.loc[survey_row, "type"] == "end_group":
+    if survey.loc[survey_row, "type"] == "end group":
         spaces = generate_tab_spaces(xml_level - 1)
-        print(survey.loc[survey_row, "type"], xml_level, group_at_level)
         group = group_at_level[xml_level]
 
         submission_xml += f"\n{spaces}</{group}>"

@@ -5,18 +5,28 @@ import datetime
 import os
 import pytz
 import sys
+import json
 import uuid
-from copy import copy
 from random import sample, randint, choice, random, shuffle
-from xml.etree import ElementTree as ET
-
-import lorem
-
 from pyxform.xls2json import parse_file_to_json
-from pyxform.xform2json import convert_dict_to_xml
-
+from pyxform.constants import (
+    SELECT_ALL_THAT_APPLY,
+    SELECT_ONE,
+    RANK,
+    ID_STRING,
+    VERSION,
+    NAME,
+    CHILDREN,
+    TYPE,
+    SURVEY,
+    CONTROL,
+    APPEARANCE,
+)
+from xmltodict import unparse
 
 from faker import Faker
+
+TEXT = "text"
 
 
 faker = Faker()
@@ -61,47 +71,44 @@ def get_random_datetime(_type="datetime"):
         return format_openrosa_datetime(dt.date())
 
 
-def get_submission_misc(_uuid):
-    return {
-        "meta": {"instanceID": get_instance_id(_uuid)},
-    }
-
-
-def get_submission_data(asset_content):
-    survey = asset_content["children"]
-    asset_choices = asset_content.get("choices", {})
-
+def get_data(survey):
     result = {}
     for item in survey:
-        name = item.get("name") or item.get("$autoname")
+        name = item.get(NAME) or item.get("$autoname")
         if name is None:
             continue
 
         data_type = item.get("type")
-        appearance = item.get("appearance")
+        appearance = item.get(CONTROL, {}).get(APPEARANCE)
         current_time = format_openrosa_datetime()
 
-        choices = None
-        if data_type in ["select_one", "select_multiple"]:
-            choices = asset_choices[item["select_from_list_name"]]
-
-        res = ""
+        res = item.get("default", "")
         # SELECT QUESTIONS
-        if data_type == "select_multiple":
-            res = " ".join(sample(choices, randint(0, len(choices))))
-        elif data_type == "select_one":
-            res = choice(choices)
-        elif data_type == "rank":
-            _choices = copy(choices)
-            shuffle(_choices)
-            res = " ".join(_choices)
+        # select one, select all that apply, rank
+        if data_type in [SELECT_ALL_THAT_APPLY, SELECT_ONE, RANK]:
+            choices = item.get("choices")
+            if choices is None:
+                continue
+            _choices = [c[NAME] for c in choices]
+
+            if data_type == SELECT_ALL_THAT_APPLY:
+                res = " ".join(sample(_choices, randint(0, len(_choices))))
+            elif data_type == SELECT_ONE:
+                res = choice(_choices)
+            elif data_type == RANK:
+                shuffle(_choices)
+                res = " ".join(_choices)
 
         # TEXT
-        elif data_type == "text":
+        elif data_type == TEXT:
             if appearance == "multiline":
-                res = lorem.get_sentence(count=randint(1, 20))
+                res = faker.sentence(nb_words=3)
+            elif appearance == "numbers":
+                res = faker.msisdn()
+            elif appearance == "url":
+                res = faker.url()
             else:
-                res = lorem.get_word(count=randint(1, 5))
+                res = faker.word()
 
         # DATE AND TIME
         elif data_type in ["datetime", "date", "time"]:
@@ -128,45 +135,67 @@ def get_submission_data(asset_content):
                 [p1] + [get_point() for _ in range(1, randint(2, 10))] + [p1]
             )
 
-        result[name] = res
+        # GROUP
+        elif data_type == "group":
+            res = get_data(item[CHILDREN])
 
+        result[name] = res
     return result
 
 
-def get_submission(_uuid, asset):
-    return {
-        **get_submission_misc(_uuid),
-        **get_submission_data(asset),
-    }
+def get_submission_data(asset_content):
+    if asset_content.get(TYPE) == SURVEY:
+        survey = asset_content["children"]
+        result = get_data(survey)
+        return result
+    raise ValueError("Invalid asset type")
 
 
 def prepare_submission(asset):
     _uuid = get_uuid()
 
-    data = get_submission(_uuid, asset)
+    data = {}
 
-    print(_uuid, data)
+    data.update(get_submission_data(asset))
+    data.update(
+        {
+            "meta": {
+                "instanceID": get_instance_id(_uuid),
+            },
+            "@id": asset.get(ID_STRING),
+            "@version": asset.get(VERSION),
+            # NAMESPACES
+            "@xmlns:jr": "http://openrosa.org/javarosa",
+            "@xmlns:orx": "http://openrosa.org/xforms",
+        }
+    )
+    # xmlns:jr="http://openrosa.org/javarosa"
+    # xmlns:orx="http://openrosa.org/xforms"
+    # id="all-question-types"
+    # version="2024022901"
+    xml = unparse(
+        {
+            asset.get(NAME): data,
+        },
+        pretty=True,
+    )
+    return xml, _uuid
 
-    xml = convert_dict_to_xml(data)
-    # xml.tag = asset_details["asset_uid"]
-    # xml.attrib = {
-    #     "id": asset_details["asset_uid"],
-    #     "version": asset_details["version"],
-    # }
 
-    return ET.tostring(xml), _uuid
-
-
-def main(asset, count=1):
+def main(asset, count=1, filename=None):
     res_codes = []
-    for _ in range(count):
+    for i in range(count):
         xml, _uuid = prepare_submission(asset)
-        # file_tuple = (_uuid, io.BytesIO(xml))
         res_codes.append(_uuid)
-        with open(f"{_uuid}.xml", "wb") as f:
-            f.write(xml)
-
-    print(f"{len(res_codes)} total Data generated.")
+        if filename:
+            with open(f"public/{i}_{filename}.xml", "w+") as f:
+                f.write(xml)
+    json.dump(
+        asset,
+        open(f"public/{filename}.json", "w+"),
+        indent=4,
+    )
+    print(f"{res_codes} total Data generated.")
 
 
 if __name__ == "__main__":
@@ -199,7 +228,11 @@ if __name__ == "__main__":
         asset = parse_file_to_json(args.path)
     except Exception as e:
         print(f"Error: {e}")
-        sys.exit(1)
+        raise e
     print(f"Generating {args.count} submissions for {args.path}")
 
-    main(asset, count=args.count)
+    main(
+        asset,
+        count=args.count,
+        filename=os.path.basename(args.path).split(".")[0],
+    )

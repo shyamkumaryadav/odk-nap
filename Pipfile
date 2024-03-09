@@ -12,11 +12,12 @@ openpyxl = "*"
 faker = "*"
 lorem = "*"
 dicttoxml = "*"
+xmltodict = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "3.11"
+python_version = "3.9"
 
 [scripts]
 pyxform = "python wile.py"
