@@ -68,7 +68,6 @@ def get_point():
     def _get_item(s=0, e=1, r=6):
         return round(randint(s, e) * random(), r)
 
-    print(faker.local_latlng(country_code="IN"))
     lat, lon = faker.local_latlng(country_code="IN", coords_only=True)
     return f"{lat} {lon} {_get_item(0,10, 1)} {_get_item(0,10, 1)}"
 
