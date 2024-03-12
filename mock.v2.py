@@ -7,8 +7,10 @@ import pytz
 import sys
 import json
 import uuid
+import time
 from random import sample, randint, choice, random, shuffle
 from pyxform.xls2json import parse_file_to_json
+from pyxform.xls2xform import xls2xform_convert
 from pyxform.constants import (
     SELECT_ALL_THAT_APPLY,
     SELECT_ONE,
@@ -28,8 +30,12 @@ from faker import Faker
 
 TEXT = "text"
 
+base_dir = os.path.dirname(os.path.abspath(__file__))
+
+xml_dir = os.path.join(base_dir, "public")
 
 faker = Faker()
+
 TIME_ZONE = "Asia/Kolkata"
 
 
@@ -208,22 +214,28 @@ def prepare_submission(asset):
     return xml, _uuid
 
 
-def main(asset, count=1, filename=None):
+def main(asset, count=1, asset_folder=None):
+
+    mock_start = time.time()
+
     res_codes = []
     for i in range(count):
         xml, _uuid = prepare_submission(asset)
         res_codes.append(_uuid)
-        if filename:
-            if not os.path.exists(f"public/{filename}"):
-                os.makedirs(f"public/{filename}")
-            with open(f"public/{filename}/{i}.xml", "w+") as f:
+        if asset_folder:
+            with open(
+                os.path.join(
+                    asset_folder,
+                    f"mock-{_uuid}.xml",
+                ),
+                "w+",
+            ) as f:
                 f.write(xml)
-    json.dump(
-        asset,
-        open(f"public/{filename}.json", "w+"),
-        indent=4,
+    mock_end = time.time()
+    mock_time = mock_end - mock_start
+    print(
+        f"[{mock_time:.2f}s] Total {len(res_codes)} Data generated.",
     )
-    print(f"{res_codes} total Data generated.")
 
 
 if __name__ == "__main__":
@@ -236,6 +248,13 @@ if __name__ == "__main__":
         type=int,
         default=1,
         help="Number of submissions to generate",
+    )
+    parser.add_argument(
+        "--delete",
+        "-d",
+        default=False,
+        help="Clear the existing data",
+        action="store_true",
     )
     # add one positional argument
     parser.add_argument(
@@ -252,15 +271,67 @@ if __name__ == "__main__":
         sys.exit(1)
     args.path = os.path.abspath(args.path)
 
+    if not os.path.exists(xml_dir):
+        os.makedirs(xml_dir)
+
     try:
+        # handle XML Generation
+        start_xml = time.time()
+        filename_ = os.path.basename(args.path)
+        filename, _ = os.path.splitext(filename_)
+
+        asset_folder = os.path.join(xml_dir, filename)
+        if not os.path.exists(asset_folder):
+            os.makedirs(asset_folder)
+        else:
+            if args.delete:
+                for file in os.listdir(asset_folder):
+                    file_path = os.path.join(asset_folder, file)
+                    if os.path.isfile(file_path):
+                        os.unlink(file_path)
+
+        output_path = os.path.join(asset_folder, "asset.xml")
+        print("Converting...'%s' to XForm" % (filename))
+        response = {"code": None, "message": None, "warnings": []}
+
+        try:
+            response["warnings"] = xls2xform_convert(
+                xlsform_path=args.path,
+                xform_path=output_path,
+                validate=True,
+                pretty_print=True,
+                # enketo=True,
+            )
+            end_xml = time.time()
+
+            response["code"] = 100
+            response["message"] = f"[{end_xml - start_xml:.2f}s] Ok!"
+
+            if response["warnings"]:
+                response["code"] = 101
+                response["message"] = "Ok with warnings."
+
+        except Exception as e:
+            # Catch the exception by default.
+            response["code"] = 999
+            response["message"] = "%s: %s" % (type(e).__name__, str(e))
+
+        print(response["message"])
+
         asset = parse_file_to_json(args.path)
+        json.dump(
+            asset,
+            open(os.path.join(asset_folder, "asset.json"), "w+"),
+            indent=4,
+        )
     except Exception as e:
         print(f"Error: {e}")
         raise e
-    print(f"Generating {args.count} submissions for {args.path}")
+
+    print(f"Generating {args.count} submissions for '{filename}'")
 
     main(
         asset,
         count=args.count,
-        filename=os.path.basename(args.path).split(".")[0],
+        asset_folder=asset_folder,
     )
