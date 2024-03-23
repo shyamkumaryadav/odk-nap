@@ -122,6 +122,7 @@ export async function init(
     >
     Save Draft
     </button>
+    <input class="inline-block" type="file" id="load-mock" />
   </div>`;
   root.appendChild(div_);
 
@@ -206,6 +207,18 @@ export async function init(
     form.view.html.dispatchEvent(event.BeforeSave());
     localStorage.setItem(`form-${form_url}`, form.getDataStr());
     // document.getElementById("reload-localstorage")?.click();
+  });
+
+  const loadMock = document.querySelector("#load-mock")!;
+  loadMock.addEventListener("change", (e) => {
+    const file = (e.target as HTMLInputElement).files![0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const data = e.target?.result;
+      form.model.mergeXml(data);
+      form.resetView();
+    };
+    reader.readAsText(file);
   });
 }
 

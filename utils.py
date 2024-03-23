@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 
-import argparse
 import datetime
 import os
 import pytz
-import sys
-import json
 import uuid
 import time
+import tempfile
+import shutil
+import subprocess
+
 from random import sample, randint, choice, random, shuffle
-from pyxform.xls2json import parse_file_to_json
-from pyxform.xls2xform import xls2xform_convert
+
 from pyxform.constants import (
     SELECT_ALL_THAT_APPLY,
     SELECT_ONE,
@@ -25,18 +25,11 @@ from pyxform.constants import (
     APPEARANCE,
 )
 from xmltodict import unparse
-
 from faker import Faker
 
-TEXT = "text"
-
-base_dir = os.path.dirname(os.path.abspath(__file__))
-
-xml_dir = os.path.join(base_dir, "public")
+from conf import ASSETS_DIR, SUPPORTED_EXCEL_EXT, TIME_ZONE, TEXT
 
 faker = Faker()
-
-TIME_ZONE = "Asia/Kolkata"
 
 
 def get_uuid():
@@ -97,13 +90,13 @@ def get_data(survey):
     result = {}
     for item in survey:
         name = item.get(NAME)
-        if name is None:
-            continue
-
         data_type = item.get("type")
         appearance = item.get(CONTROL, {}).get(APPEARANCE)
-
         res = item.get("default", "")
+
+        if name is None or data_type == "repeat":
+            continue
+
         # SELECT QUESTIONS
         if data_type in [SELECT_ALL_THAT_APPLY, SELECT_ONE, RANK]:
             choices = item.get("choices")
@@ -214,7 +207,7 @@ def prepare_submission(asset):
     return xml, _uuid
 
 
-def main(asset, count=1, asset_folder=None):
+def generate_mock_response(asset, count=1, asset_folder=None):
 
     mock_start = time.time()
 
@@ -238,100 +231,50 @@ def main(asset, count=1, asset_folder=None):
     )
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="A CLI tool to submit random data to KoBo"
-    )
-    parser.add_argument(
-        "--count",
-        "-c",
-        type=int,
-        default=1,
-        help="Number of submissions to generate",
-    )
-    parser.add_argument(
-        "--delete",
-        "-d",
-        default=False,
-        help="Clear the existing data",
-        action="store_true",
-    )
-    # add one positional argument
-    parser.add_argument(
-        "path",
-        type=str,
-        help="Path to the asset file",
-    )
-
-    args = parser.parse_args()
-
-    # check if path exists and is a file
-    if not os.path.isfile(args.path):
-        print(f"Error: {args.path} is not a file")
-        sys.exit(1)
-    args.path = os.path.abspath(args.path)
-
-    if not os.path.exists(xml_dir):
-        os.makedirs(xml_dir)
-
-    try:
-        # handle XML Generation
-        start_xml = time.time()
-        filename_ = os.path.basename(args.path)
+def xls2xml(xls_path):
+    if (
+        xls_path
+        and os.path.exists(xls_path)
+        and os.path.splitext(xls_path)[1][1:] in SUPPORTED_EXCEL_EXT
+    ):
+        temp_dir = tempfile.mkdtemp()
+        filename_ = os.path.basename(xls_path)
         filename, _ = os.path.splitext(filename_)
+        xls_form_path = os.path.join(temp_dir, filename)
+        shutil.copy(xls_path, xls_form_path)
+        start_xml = time.time()
 
-        asset_folder = os.path.join(xml_dir, filename)
+        asset_folder = os.path.join(ASSETS_DIR, filename)
         if not os.path.exists(asset_folder):
             os.makedirs(asset_folder)
-        else:
-            if args.delete:
-                for file in os.listdir(asset_folder):
-                    file_path = os.path.join(asset_folder, file)
-                    if os.path.isfile(file_path):
-                        os.unlink(file_path)
 
         output_path = os.path.join(asset_folder, "asset.xml")
         print("Converting...'%s' to XForm" % (filename))
         response = {"code": None, "message": None, "warnings": []}
 
-        try:
-            response["warnings"] = xls2xform_convert(
-                xlsform_path=args.path,
-                xform_path=output_path,
-                validate=True,
-                pretty_print=True,
-                # enketo=True,
-            )
-            end_xml = time.time()
+        out = subprocess.call(
+            [
+                "xls2xform",
+                "--pretty_print",
+                # "--skip_validate",
+                # "--odk_validate",
+                # "--enketo_validate",
+                xls_path,
+                output_path,
+            ],
+        )
 
+        end_xml = time.time()
+        response["message"] = f"[{end_xml - start_xml:.1f}s] "
+        if out == 0:
             response["code"] = 100
-            response["message"] = f"[{end_xml - start_xml:.2f}s] Ok!"
+            response["message"] += "Ok!"
 
             if response["warnings"]:
                 response["code"] = 101
-                response["message"] = "Ok with warnings."
-
-        except Exception as e:
-            # Catch the exception by default.
+                response["message"] += "Ok with warnings."
+        else:
             response["code"] = 999
-            response["message"] = "%s: %s" % (type(e).__name__, str(e))
+            response["message"] += "Error!"
 
-        print(response["message"])
-
-        asset = parse_file_to_json(args.path)
-        json.dump(
-            asset,
-            open(os.path.join(asset_folder, "asset.json"), "w+"),
-            indent=4,
-        )
-    except Exception as e:
-        print(f"Error: {e}")
-        raise e
-
-    print(f"Generating {args.count} submissions for '{filename}'")
-
-    main(
-        asset,
-        count=args.count,
-        asset_folder=asset_folder,
-    )
+    return response

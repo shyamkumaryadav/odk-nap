@@ -83,6 +83,9 @@ export function setupDropdown(element: HTMLDivElement) {
   xh.open("GET", "forms.json");
 
   xh.onload = function () {
+    if (xh.status !== 200) {
+      return;
+    }
     const data = JSON.parse(xh.responseText);
     const select = document.createElement("select");
     select.classList.add("border", "mb-3", "py-2", "px-3");

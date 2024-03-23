@@ -20,4 +20,5 @@ xmltodict = "*"
 python_version = "3.9"
 
 [scripts]
-pyxform = "python wile.py"
+dev = "python xls2xml.py"
+mock = "python mock.py"
