@@ -366,11 +366,14 @@ export async function init(
     const total = result.map((v) => v.score_total).reduce((p, c) => p + c, 0);
 
     // Total score
-    console.log(
-      score.toFixed(1) + "/" + total,
-      (score * (100 / total)).toFixed(1) + "%",
-      result
-    );
+    console.log(result);
+
+    document.querySelector("section.form-logo")!.innerHTML =
+      JSON.stringify({
+        score: score.toFixed(1),
+        total: total.toFixed(0),
+        parentage: (score * (100 / total)).toFixed(1) + "%",
+      }) || "";
 
     // console.log(result);
     console.log("%c" + "★".repeat(15), "color: red");
