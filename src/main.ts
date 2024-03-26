@@ -224,54 +224,6 @@ export async function init(
 
   // on change
   document.addEventListener("xforms-value-changed", () => {
-    // const temp = (
-    //   window.odk_form.toc.tocItems as {
-    //     element: HTMLFieldSetElement;
-    //   }[]
-    // )
-    //   .filter((t) => t.element.classList.contains("simple-select"))
-    //   .map((t) => {
-    //     const isMulti = !t.element.querySelector("input[type='radio']");
-    //     const value: string = form.model.evaluate(
-    //       t.element
-    //         .querySelector("label.contains-ref-target")!
-    //         .getAttribute("data-contains-ref-target"),
-    //       "string"
-    //     );
-    //     return {
-    //       name: t.element
-    //         .querySelector("label.contains-ref-target")!
-    //         .getAttribute("data-contains-ref-target"),
-    //       label: t.element.querySelector<HTMLSpanElement>(
-    //         ".question-label.active"
-    //       )!.innerText,
-    //       value,
-    //       isMulti,
-    //       score: isMulti
-    //         ? // loop on each count it
-    //           value
-    //             .split(" ")
-    //             .map(
-    //               (v) =>
-    //                 form.model.evaluate(
-    //                   `//item[name="${v}"]/jr:score`,
-    //                   "number"
-    //                 ) || 0
-    //             )
-    //             .reduce((p, c) => p + c, 0)
-    //         : form.model.evaluate(
-    //             `//item[name="${value}"]/jr:score`,
-    //             "number"
-    //           ) || 0,
-    //       total: form.model.evaluate(
-    //         `sum(${t.element
-    //           .querySelector("label.contains-ref-target")!
-    //           .getAttribute("data-items-path")}/jr:score)`,
-    //         "number"
-    //       ),
-    //     };
-    //   });
-
     function buildTree(tocArray: TOC_ITEMS) {
       const map = new Map<string, TOC_ITEMS>(); // Using a Map to efficiently group TOC items by their parent ID
 
@@ -307,28 +259,59 @@ export async function init(
               (total, child) => total + (child.score || 0),
               0
             );
-          } else {
-            tocItem.score_total =
-              form.model.evaluate(
-                `sum(${tocItem.element
-                  .querySelector("label.contains-ref-target")!
-                  .getAttribute("data-items-path")}/jr:score)`,
-                "number"
-              ) || 0;
 
-            tocItem.score =
-              form.model.evaluate(
-                `//item[name="${form.model.evaluate(
-                  tocItem.element
-                    .querySelector("label.contains-ref-target")!
-                    .getAttribute("data-contains-ref-target"),
-                  "string"
-                )}"]/jr:score`,
-                "number"
-              ) || 0;
+            const repeat = [...tocItem.element.children].filter((node) => {
+              return node.classList?.contains("or-repeat");
+            });
+
+            if (repeat.length > 0) {
+              const maxCount =
+                form.model.evaluate(`count(${tocItem.name})`, "number") || 1;
+              // tocItem.score = tocItem.score / maxCount;
+              // tocItem.score_total = tocItem.score_total / maxCount;
+              console.table(
+                [
+                  {
+                    label: tocItem.label,
+                    maxCount,
+                    score: tocItem.score,
+                    score_total: tocItem.score_total,
+                    "score/count": tocItem.score / maxCount,
+                    "score_total/count": tocItem.score_total / maxCount,
+                  },
+                ]
+                // tocItem.element.querySelector(".or-repeat>span.repeat-number")!
+                //   .innerHTML
+              );
+            }
+          } else {
+            const isMulti = !tocItem.element.querySelector(
+              "input[type='radio']"
+            );
+            const value: string = form.model.evaluate(tocItem.name, "string");
+            const instanceName = tocItem.element
+              .querySelector("label.contains-ref-target")!
+              .getAttribute("data-items-path");
+            tocItem.score_total =
+              form.model.evaluate(`sum(${instanceName}/jr:score)`, "number") ||
+              0;
+
+            tocItem.score = isMulti
+              ? value
+                  .split(" ")
+                  .map(
+                    (v) =>
+                      form.model.evaluate(
+                        `${instanceName}[name="${v}"]/jr:score`,
+                        "number"
+                      ) || 0
+                  )
+                  .reduce((p, c) => p + c, 0)
+              : form.model.evaluate(
+                  `${instanceName}[name="${value}"]/jr:score`,
+                  "number"
+                ) || 0;
           }
-          // Calculate score as sum of own score and total score of children
-          // tocItem.score = (tocItem.score || 0) + tocItem.score_total;
         }
       }
 
@@ -375,6 +358,7 @@ export async function init(
     console.log(score + "/" + total, (score * (100 / total)).toFixed(1) + "%");
 
     console.log(result);
+    console.log("%c" + "★".repeat(15), "color: red");
   });
 }
 
