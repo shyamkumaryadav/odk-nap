@@ -272,25 +272,44 @@ export async function init(
               tocItem.score_total = tocItem.score_total / maxCount;
             }
           } else {
-            const value = form.model.evaluate(tocItem.name, "string");
+            let calculate_name = "";
+            if (tocItem.name.match(/\/\w+\[\d+\]/)) {
+              const name = tocItem.name.split("[")[0];
+              const number = tocItem.name.split("[")[1].split("]")[0];
+              calculate_name = name + "_score" + "[" + number + "]";
+            } else {
+              calculate_name = tocItem.name + "_score";
+            }
+            const calculate_value = form.model
+              .evaluate(calculate_name, "string")
+              .split(" ")
+              .map((v: string) => Number(v));
+            if (calculate_value.length === 2) {
+              tocItem.score = calculate_value[0];
+              tocItem.score_total = calculate_value[1];
+            } else {
+              const value = form.model.evaluate(tocItem.name, "string");
 
-            const instanceName = tocItem.element
-              .querySelector("label.contains-ref-target")!
-              .getAttribute("data-items-path");
+              const instanceName = tocItem.element
+                .querySelector("label.contains-ref-target")!
+                .getAttribute("data-items-path");
 
-            tocItem.score_total =
-              form.model.evaluate(`sum(${instanceName}/jr:score)`, "number") ||
-              0;
-
-            tocItem.score = value
-              ? form.model.evaluate(
-                  `sum(${instanceName}[${value
-                    .split(" ")
-                    .map((v: string) => `contains(name, "${v}")`)
-                    .join(" or ")}]/jr:score)`,
+              tocItem.score_total =
+                form.model.evaluate(
+                  `sum(${instanceName}/jr:score)`,
                   "number"
-                ) || 0
-              : 0;
+                ) || 0;
+
+              tocItem.score = value
+                ? form.model.evaluate(
+                    `sum(${instanceName}[${value
+                      .split(" ")
+                      .map((v: string) => `contains(name, "${v}")`)
+                      .join(" or ")}]/jr:score)`,
+                    "number"
+                  ) || 0
+                : 0;
+            }
           }
         }
       }
@@ -347,7 +366,11 @@ export async function init(
     const total = result.map((v) => v.score_total).reduce((p, c) => p + c, 0);
 
     // Total score
-    console.log(score + "/" + total, (score * (100 / total)).toFixed(1) + "%");
+    console.log(
+      score.toFixed(1) + "/" + total,
+      (score * (100 / total)).toFixed(1) + "%",
+      result
+    );
 
     // console.log(result);
     console.log("%c" + "★".repeat(15), "color: red");
