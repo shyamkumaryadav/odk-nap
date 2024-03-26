@@ -272,32 +272,25 @@ export async function init(
               tocItem.score_total = tocItem.score_total / maxCount;
             }
           } else {
-            const isMulti = !tocItem.element.querySelector(
-              "input[type='radio']"
-            );
-            const value: string = form.model.evaluate(tocItem.name, "string");
+            const value = form.model.evaluate(tocItem.name, "string");
+
             const instanceName = tocItem.element
               .querySelector("label.contains-ref-target")!
               .getAttribute("data-items-path");
+
             tocItem.score_total =
               form.model.evaluate(`sum(${instanceName}/jr:score)`, "number") ||
               0;
 
-            tocItem.score = isMulti
-              ? value
-                  .split(" ")
-                  .map(
-                    (v) =>
-                      form.model.evaluate(
-                        `${instanceName}[name="${v}"]/jr:score`,
-                        "number"
-                      ) || 0
-                  )
-                  .reduce((p, c) => p + c, 0)
-              : form.model.evaluate(
-                  `${instanceName}[name="${value}"]/jr:score`,
+            tocItem.score = value
+              ? form.model.evaluate(
+                  `sum(${instanceName}[${value
+                    .split(" ")
+                    .map((v: string) => `contains(name, "${v}")`)
+                    .join(" or ")}]/jr:score)`,
                   "number"
-                ) || 0;
+                ) || 0
+              : 0;
           }
         }
       }
