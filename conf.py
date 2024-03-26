@@ -10,6 +10,10 @@ XLS_DIR = os.path.join(BASE_DIR, "XLS")
 
 ASSETS_DIR = os.path.join(BASE_DIR, "public")
 
+ASSET_FILE = "asset.xml"
+
+FORM_LIST = "forms.json"
+
 SUPPORTED_EXCEL_EXT = FILE_FORMAT_DESCRIPTIONS.keys()
 
 TIME_ZONE = "Asia/Kolkata"

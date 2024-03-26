@@ -8,6 +8,7 @@ import time
 import tempfile
 import shutil
 import subprocess
+import json
 
 from random import sample, randint, choice, random, shuffle
 
@@ -27,7 +28,7 @@ from pyxform.constants import (
 from xmltodict import unparse
 from faker import Faker
 
-from conf import ASSETS_DIR, SUPPORTED_EXCEL_EXT, TIME_ZONE, TEXT
+from conf import ASSETS_DIR, SUPPORTED_EXCEL_EXT, TIME_ZONE, TEXT, ASSET_FILE
 
 faker = Faker()
 
@@ -248,7 +249,7 @@ def xls2xml(xls_path):
         if not os.path.exists(asset_folder):
             os.makedirs(asset_folder)
 
-        output_path = os.path.join(asset_folder, "asset.xml")
+        output_path = os.path.join(asset_folder, ASSET_FILE)
         print("Converting...'%s' to XForm" % (filename))
         response = {"code": None, "message": None, "warnings": []}
 
@@ -278,3 +279,19 @@ def xls2xml(xls_path):
             response["message"] += "Error!"
 
     return response
+
+
+def json_file():
+    xml_files = []
+    for filename in os.listdir(ASSETS_DIR):
+        xml_file = os.path.join(ASSETS_DIR, filename, ASSET_FILE)
+        if os.path.isfile(xml_file):
+            xml_files.append(
+                {
+                    "title": filename,
+                    "path": f"{filename}/{ASSET_FILE}",
+                }
+            )
+    json_file = os.path.join(ASSETS_DIR, "forms.json")
+    with open(json_file, "w") as f:
+        json.dump(xml_files, f)

@@ -5,6 +5,7 @@ import { transform } from "enketo-transformer/web";
 import "./styles/main.scss";
 
 import { xmlDebug, setupDropdown, setupLocalStorage, add_now } from "./utils";
+import { TOC_ITEMS } from "../types";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
 
@@ -219,6 +220,161 @@ export async function init(
       form.resetView();
     };
     reader.readAsText(file);
+  });
+
+  // on change
+  document.addEventListener("xforms-value-changed", () => {
+    // const temp = (
+    //   window.odk_form.toc.tocItems as {
+    //     element: HTMLFieldSetElement;
+    //   }[]
+    // )
+    //   .filter((t) => t.element.classList.contains("simple-select"))
+    //   .map((t) => {
+    //     const isMulti = !t.element.querySelector("input[type='radio']");
+    //     const value: string = form.model.evaluate(
+    //       t.element
+    //         .querySelector("label.contains-ref-target")!
+    //         .getAttribute("data-contains-ref-target"),
+    //       "string"
+    //     );
+    //     return {
+    //       name: t.element
+    //         .querySelector("label.contains-ref-target")!
+    //         .getAttribute("data-contains-ref-target"),
+    //       label: t.element.querySelector<HTMLSpanElement>(
+    //         ".question-label.active"
+    //       )!.innerText,
+    //       value,
+    //       isMulti,
+    //       score: isMulti
+    //         ? // loop on each count it
+    //           value
+    //             .split(" ")
+    //             .map(
+    //               (v) =>
+    //                 form.model.evaluate(
+    //                   `//item[name="${v}"]/jr:score`,
+    //                   "number"
+    //                 ) || 0
+    //             )
+    //             .reduce((p, c) => p + c, 0)
+    //         : form.model.evaluate(
+    //             `//item[name="${value}"]/jr:score`,
+    //             "number"
+    //           ) || 0,
+    //       total: form.model.evaluate(
+    //         `sum(${t.element
+    //           .querySelector("label.contains-ref-target")!
+    //           .getAttribute("data-items-path")}/jr:score)`,
+    //         "number"
+    //       ),
+    //     };
+    //   });
+
+    function buildTree(tocArray: TOC_ITEMS) {
+      const map = new Map<string, TOC_ITEMS>(); // Using a Map to efficiently group TOC items by their parent ID
+
+      // First pass: Group TOC items by their parent ID
+      for (const tocItem of tocArray) {
+        const parentId = tocItem.tocParentId;
+        if (!map.has(parentId)) {
+          map.set(parentId, []);
+        }
+        map.get(parentId)!.push(tocItem);
+      }
+
+      // Second pass: Append child TOC items to their respective parent's 'child' array
+      for (const tocItem of tocArray) {
+        const parentId = tocItem.tocId;
+        if (map.has(parentId)) {
+          tocItem.children = map.get(parentId)!;
+        }
+      }
+
+      // Third pass: Calculate scores
+      function calculateScores(tocItems: TOC_ITEMS) {
+        for (const tocItem of tocItems) {
+          if (tocItem.children && tocItem.children.length > 0) {
+            // Recursively calculate scores for children
+            calculateScores(tocItem.children);
+            // Calculate total score as sum of children's scores
+            tocItem.score_total = tocItem.children.reduce(
+              (total, child) => total + (child.score_total || 0),
+              0
+            );
+            tocItem.score = tocItem.children.reduce(
+              (total, child) => total + (child.score || 0),
+              0
+            );
+          } else {
+            tocItem.score_total =
+              form.model.evaluate(
+                `sum(${tocItem.element
+                  .querySelector("label.contains-ref-target")!
+                  .getAttribute("data-items-path")}/jr:score)`,
+                "number"
+              ) || 0;
+
+            tocItem.score =
+              form.model.evaluate(
+                `//item[name="${form.model.evaluate(
+                  tocItem.element
+                    .querySelector("label.contains-ref-target")!
+                    .getAttribute("data-contains-ref-target"),
+                  "string"
+                )}"]/jr:score`,
+                "number"
+              ) || 0;
+          }
+          // Calculate score as sum of own score and total score of children
+          // tocItem.score = (tocItem.score || 0) + tocItem.score_total;
+        }
+      }
+
+      calculateScores(tocArray);
+      // Filter out items that are not root items (i.e., items with no parent)
+      return tocArray.filter((tocItem) => !tocItem.level);
+    }
+
+    const result = buildTree(
+      (form.toc.tocItems as TOC_ITEMS)
+        .filter(
+          (item) =>
+            item.element.classList.contains("or-group") ||
+            item.element.classList.contains("simple-select")
+        )
+        .map((item) => {
+          // console.log(item.element)
+          return {
+            label:
+              item.element.querySelector(".question-label.active")!
+                .textContent || "",
+            name:
+              item.element.getAttribute("name") ||
+              item.element
+                .querySelector("label.contains-ref-target")!
+                .getAttribute("data-contains-ref-target") ||
+              "",
+            score: 0,
+            score_total: 0,
+            tocId: item.tocId,
+            tocParentId: item.tocParentId,
+            level: item.level,
+            element: item.element,
+            // children: [],
+          };
+        })
+    );
+
+    const score = result.map((v) => v.score).reduce((p, c) => p + c, 0);
+
+    const total = result.map((v) => v.score_total).reduce((p, c) => p + c, 0);
+
+    // Total score
+    console.log(score + "/" + total, (score * (100 / total)).toFixed(1) + "%");
+
+    console.log(result);
   });
 }
 

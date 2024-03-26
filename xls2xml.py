@@ -5,7 +5,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 from conf import XLS_DIR, SUPPORTED_EXCEL_EXT
-from utils import xls2xml
+from utils import xls2xml, json_file
 
 
 class MyHandler(FileSystemEventHandler):
@@ -22,23 +22,11 @@ class MyHandler(FileSystemEventHandler):
                     if os.name == "nt":
                         import winsound
 
+                        json_file()
+
                         winsound.MessageBeep(type=winsound.MB_OK)
             except Exception as e:
                 print("Error: ", e)
-
-                # # get all xml files in xml_dir
-                # xml_files = [
-                #     (response["message"] if response["code"] == 999 else "")
-                #  + f
-                #     for f in os.listdir(xml_dir)
-                #     if os.path.isfile(os.path.join(xml_dir, f))
-                #     and os.path.splitext(f)[1] == ".xml"
-                # ]
-                # # create a json file which contains all xml files
-                # with open(os.path.join(xml_dir, "forms.json"), "w") as f:
-                #     f.write('{"forms": [')
-                #     f.write(",".join(['"%s"' % (x) for x in xml_files]))
-                #     f.write("]}")
 
 
 if __name__ == "__main__":

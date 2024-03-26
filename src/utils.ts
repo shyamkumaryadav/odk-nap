@@ -86,15 +86,21 @@ export function setupDropdown(element: HTMLDivElement) {
     if (xh.status !== 200) {
       return;
     }
-    const data = JSON.parse(xh.responseText);
+    const data: {
+      title: string;
+      path: string;
+    }[] = JSON.parse(xh.responseText);
     const select = document.createElement("select");
     select.classList.add("border", "mb-3", "py-2", "px-3");
     const urlParams = new URLSearchParams(window.location.search);
     const form = urlParams.get("form");
+
     select.innerHTML =
       '<option value="">Select a form to preview</option>' +
-      data.forms
-        .map((form: any) => `<option value="${form}">${form}</option>`)
+      data
+        .map((forms) => {
+          return `<option value="${forms.path}">${forms.title}</option>`;
+        })
         .join("");
     element.appendChild(select);
 
@@ -112,7 +118,7 @@ export function setupDropdown(element: HTMLDivElement) {
     a_.innerHTML = "Enketo Form Preview";
     a_.style.display = form ? "block" : "none";
     element.appendChild(a_);
-    if (form && data.forms.includes(form)) {
+    if (form && data.some((forms) => forms.path === form)) {
       select.value = form;
     }
     select.addEventListener("change", (event) => {

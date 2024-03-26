@@ -7,3 +7,17 @@ declare global {
     odk_form?: Form;
   }
 }
+
+export interface TOC_ITEM {
+  tocParentId: string;
+  tocId: string;
+  level: number;
+  element: HTMLElement;
+  label: string;
+  name: string;
+  score: number;
+  score_total: number;
+  children?: TOC_ITEM[];
+}
+
+export type TOC_ITEMS = TOC_ITEM[];
