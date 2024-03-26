@@ -267,22 +267,9 @@ export async function init(
             if (repeat.length > 0) {
               const maxCount =
                 form.model.evaluate(`count(${tocItem.name})`, "number") || 1;
-              // tocItem.score = tocItem.score / maxCount;
-              // tocItem.score_total = tocItem.score_total / maxCount;
-              console.table(
-                [
-                  {
-                    label: tocItem.label,
-                    maxCount,
-                    score: tocItem.score,
-                    score_total: tocItem.score_total,
-                    "score/count": tocItem.score / maxCount,
-                    "score_total/count": tocItem.score_total / maxCount,
-                  },
-                ]
-                // tocItem.element.querySelector(".or-repeat>span.repeat-number")!
-                //   .innerHTML
-              );
+
+              tocItem.score = tocItem.score / maxCount;
+              tocItem.score_total = tocItem.score_total / maxCount;
             }
           } else {
             const isMulti = !tocItem.element.querySelector(
@@ -328,17 +315,29 @@ export async function init(
             item.element.classList.contains("simple-select")
         )
         .map((item) => {
-          // console.log(item.element)
+          const getName = (el: HTMLElement) => {
+            const isRepeat = el.parentElement?.classList.contains("or-repeat");
+            const name =
+              el.getAttribute("name") ||
+              el
+                .querySelector("label.contains-ref-target")!
+                .getAttribute("data-contains-ref-target") ||
+              "";
+            return (
+              name +
+              (isRepeat
+                ? `[${
+                    el.parentElement?.querySelector(".repeat-number")!
+                      .textContent
+                  }]`
+                : "")
+            );
+          };
           return {
             label:
               item.element.querySelector(".question-label.active")!
                 .textContent || "",
-            name:
-              item.element.getAttribute("name") ||
-              item.element
-                .querySelector("label.contains-ref-target")!
-                .getAttribute("data-contains-ref-target") ||
-              "",
+            name: getName(item.element),
             score: 0,
             score_total: 0,
             tocId: item.tocId,
@@ -357,7 +356,7 @@ export async function init(
     // Total score
     console.log(score + "/" + total, (score * (100 / total)).toFixed(1) + "%");
 
-    console.log(result);
+    // console.log(result);
     console.log("%c" + "★".repeat(15), "color: red");
   });
 }
