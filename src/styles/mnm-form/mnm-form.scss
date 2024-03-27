@@ -16,11 +16,24 @@
   @import "enketo-core/src/sass/core/pages";
 
   .form-header {
-    position: static;
+    position: sticky;
+    width: 32px;
+    top: -16px;
+    z-index: 50001;
+    .pages-toc {
+      background: white;
+    }
   }
 
   .form-footer {
     margin: 0;
+  }
+
+  .form-logo {
+    z-index: 5000;
+    background: white;
+    top: 0px;
+    position: sticky;
   }
 
   // Widgets

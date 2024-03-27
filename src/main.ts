@@ -363,6 +363,9 @@ export async function init(
               tocItem.score = calculate_value[0];
               tocItem.score_total = calculate_value[1];
             } else {
+              const isMulti = !!tocItem.element.querySelector(
+                "input[type=checkbox]"
+              );
               const value = form.model.evaluate(tocItem.name, "string");
 
               const instanceName = tocItem.element
@@ -371,7 +374,7 @@ export async function init(
 
               tocItem.score_total =
                 form.model.evaluate(
-                  `sum(${instanceName}/jr:score)`,
+                  `${isMulti ? "sum" : "max"}(${instanceName}/jr:score)`,
                   "number"
                 ) || 0;
 
