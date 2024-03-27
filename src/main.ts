@@ -1,11 +1,86 @@
 import event from "enketo-core/src/js/event";
 // @ts-ignore
 import { Form } from "enketo-core";
+import { getAncestors, getSiblingElement } from "enketo-core/src/js/dom-utils";
 import { transform } from "enketo-transformer/web";
 import "./styles/main.scss";
 
 import { xmlDebug, setupDropdown, setupLocalStorage, add_now } from "./utils";
-import { TOC_ITEMS } from "../types";
+import { TOC_ITEM, TOC_ITEMS } from "../types";
+
+const getName = (el: TOC_ITEM["element"]) => {
+  const isRepeat = el.parentElement?.classList.contains("or-repeat");
+  const name =
+    el.getAttribute("name") ||
+    el
+      .querySelector("label.contains-ref-target")
+      ?.getAttribute("data-contains-ref-target") ||
+    "";
+  return (
+    name +
+    (isRepeat
+      ? `[${el.parentElement?.querySelector(".repeat-number")!.textContent}]`
+      : "")
+  );
+};
+
+const getToc = (form: typeof Form) => {
+  const tocItems: TOC_ITEMS = [];
+
+  const tocElements = [
+    ...(form.view.$[0] as HTMLFormElement).querySelectorAll(
+      '.question:not([role="comment"]), .or-group'
+    ),
+  ]
+    .filter(
+      (tocEl) =>
+        // !tocEl.closest('.disabled') &&
+        tocEl.matches(".question") ||
+        // tocEl.querySelector(".question:not(.disabled)") ||
+        tocEl.querySelector(".question:not(.non-select)") ||
+        // or-repeat-info is only considered a page by itself if it has no sibling repeats When there are siblings repeats, we use CSS trickery to show the + button underneath the last repeat.
+        (tocEl.matches(".or-repeat-info") &&
+          !getSiblingElement(tocEl, ".or-repeat"))
+    )
+    .filter((tocEl) => !tocEl.classList.contains("or-repeat-info"));
+
+  tocElements.forEach((element, index) => {
+    const groupParents = getAncestors(element, ".or-group");
+    tocItems.push({
+      element,
+      level: groupParents.length,
+      parent:
+        groupParents.length > 0 ? groupParents[groupParents.length - 1] : null,
+      tocId: index,
+      tocParentId: null,
+      name: getName(element),
+      label: "",
+      score: 0,
+      score_total: 0,
+    });
+  });
+
+  const _maxTocLevel = Math.max(...tocItems.map((el) => el.level));
+  const newTocParents = tocItems.filter(
+    (item) =>
+      item.level < _maxTocLevel && item.element.classList.contains("or-group")
+  );
+
+  tocItems.forEach((item) => {
+    const parentItem = newTocParents.find(
+      (parent) => item.parent === parent.element
+    );
+    if (parentItem) {
+      item.tocParentId = parentItem.tocId;
+    }
+  });
+
+  return tocItems.filter(
+    ({ element }) =>
+      element.classList.contains("or-group") ||
+      element.classList.contains("simple-select")
+  );
+};
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
 
@@ -225,7 +300,7 @@ export async function init(
   // on change
   document.addEventListener("xforms-value-changed", () => {
     function buildTree(tocArray: TOC_ITEMS) {
-      const map = new Map<string, TOC_ITEMS>(); // Using a Map to efficiently group TOC items by their parent ID
+      const map = new Map<TOC_ITEM["tocParentId"], TOC_ITEMS>(); // Using a Map to efficiently group TOC items by their parent ID
 
       // First pass: Group TOC items by their parent ID
       for (const tocItem of tocArray) {
@@ -310,6 +385,9 @@ export async function init(
                   ) || 0
                 : 0;
             }
+            if (tocItem.element.classList.contains("disabled")) {
+              tocItem.score = 0;
+            }
           }
         }
       }
@@ -319,47 +397,7 @@ export async function init(
       return tocArray.filter((tocItem) => !tocItem.level);
     }
 
-    const result = buildTree(
-      (form.toc.tocItems as TOC_ITEMS)
-        .filter(
-          (item) =>
-            item.element.classList.contains("or-group") ||
-            item.element.classList.contains("simple-select")
-        )
-        .map((item) => {
-          const getName = (el: HTMLElement) => {
-            const isRepeat = el.parentElement?.classList.contains("or-repeat");
-            const name =
-              el.getAttribute("name") ||
-              el
-                .querySelector("label.contains-ref-target")!
-                .getAttribute("data-contains-ref-target") ||
-              "";
-            return (
-              name +
-              (isRepeat
-                ? `[${
-                    el.parentElement?.querySelector(".repeat-number")!
-                      .textContent
-                  }]`
-                : "")
-            );
-          };
-          return {
-            label:
-              item.element.querySelector(".question-label.active")!
-                .textContent || "",
-            name: getName(item.element),
-            score: 0,
-            score_total: 0,
-            tocId: item.tocId,
-            tocParentId: item.tocParentId,
-            level: item.level,
-            element: item.element,
-            // children: [],
-          };
-        })
-    );
+    const result = buildTree(getToc(form));
 
     const score = result.map((v) => v.score).reduce((p, c) => p + c, 0);
 

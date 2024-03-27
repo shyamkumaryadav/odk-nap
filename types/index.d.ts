@@ -9,10 +9,11 @@ declare global {
 }
 
 export interface TOC_ITEM {
-  tocParentId: string;
-  tocId: string;
+  tocParentId: number | null;
+  parent: HTMLElement | null;
+  tocId: number;
   level: number;
-  element: HTMLElement;
+  element: Element;
   label: string;
   name: string;
   score: number;
