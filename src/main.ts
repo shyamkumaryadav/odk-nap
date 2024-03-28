@@ -24,6 +24,40 @@ const getName = (el: TOC_ITEM["element"]) => {
   );
 };
 
+const getTitle = (el: TOC_ITEM["element"]) => {
+  let tocItemText = "";
+  const labelEl = el.querySelector(".question-label.active");
+  if (labelEl && labelEl.textContent) {
+    tocItemText = labelEl.textContent;
+  } else {
+    const hintEl = el.querySelector(".or-hint.active");
+    if (hintEl && hintEl.textContent) {
+      tocItemText = hintEl.textContent;
+    }
+  }
+  tocItemText =
+    tocItemText.length > 25 ? tocItemText.slice(0, 25) + "..." : tocItemText;
+  return tocItemText;
+};
+
+function logTOC(tocItems: TOC_ITEMS, prefix = "") {
+  tocItems.forEach((item, index) => {
+    const isLast = index === tocItems.length - 1;
+    const currentPrefix = prefix + (isLast ? "└───" : "├───");
+    const isMulti =
+      !item.children && !!item.element.querySelector("input[type=checkbox]");
+    console.log(
+      `${currentPrefix} [${item.score}/${item.score_total}] ${
+        isMulti ? "*" : ""
+      }${item.label}`
+    );
+    if (item.children) {
+      const childPrefix = prefix + (isLast ? "    " : "│   ");
+      logTOC(item.children, childPrefix);
+    }
+  });
+}
+
 const getToc = (form: typeof Form) => {
   const tocItems: TOC_ITEMS = [];
 
@@ -54,7 +88,7 @@ const getToc = (form: typeof Form) => {
       tocId: index,
       tocParentId: null,
       name: getName(element),
-      label: "",
+      label: getTitle(element),
       score: 0,
       score_total: 0,
     });
@@ -82,6 +116,117 @@ const getToc = (form: typeof Form) => {
   );
 };
 
+const getScore = (form: typeof Form) => {
+  function buildTree(tocArray: TOC_ITEMS) {
+    const map = new Map<TOC_ITEM["tocParentId"], TOC_ITEMS>(); // Using a Map to efficiently group TOC items by their parent ID
+
+    // First pass: Group TOC items by their parent ID
+    for (const tocItem of tocArray) {
+      const parentId = tocItem.tocParentId;
+      if (!map.has(parentId)) {
+        map.set(parentId, []);
+      }
+      map.get(parentId)!.push(tocItem);
+    }
+
+    // Second pass: Append child TOC items to their respective parent's 'child' array
+    for (const tocItem of tocArray) {
+      const parentId = tocItem.tocId;
+      if (map.has(parentId)) {
+        tocItem.children = map.get(parentId)!;
+      }
+    }
+
+    // Third pass: Calculate scores
+    function calculateScores(tocItems: TOC_ITEMS) {
+      for (const tocItem of tocItems) {
+        if (tocItem.children && tocItem.children.length > 0) {
+          // Recursively calculate scores for children
+          calculateScores(tocItem.children);
+          // Calculate total score as sum of children's scores
+          tocItem.score_total = tocItem.children.reduce(
+            (total, child) => total + (child.score_total || 0),
+            0
+          );
+          tocItem.score = tocItem.children.reduce(
+            (total, child) => total + (child.score || 0),
+            0
+          );
+
+          const repeat = [...tocItem.element.children].filter((node) => {
+            return node.classList?.contains("or-repeat");
+          });
+
+          if (repeat.length > 0) {
+            const maxCount =
+              form.model.evaluate(`count(${tocItem.name})`, "number") || 1;
+
+            tocItem.score = tocItem.score / maxCount;
+            tocItem.score_total = tocItem.score_total / maxCount;
+          }
+        } else {
+          let calculate_name = "";
+          if (tocItem.name.match(/\/\w+\[\d+\]/)) {
+            const name = tocItem.name.split("[")[0];
+            const number = tocItem.name.split("[")[1].split("]")[0];
+            calculate_name = name + "_score" + "[" + number + "]";
+          } else {
+            calculate_name = tocItem.name + "_score";
+          }
+          const calculate_value = form.model
+            .evaluate(calculate_name, "string")
+            .split(" ")
+            .map((v: string) => Number(v));
+          if (calculate_value.length === 2) {
+            tocItem.score = calculate_value[0];
+            tocItem.score_total = calculate_value[1];
+          } else {
+            const isMulti = !!tocItem.element.querySelector(
+              "input[type=checkbox]"
+            );
+            const value = form.model.evaluate(tocItem.name, "string");
+
+            const instanceName = tocItem.element
+              .querySelector("label.contains-ref-target")!
+              .getAttribute("data-items-path");
+
+            tocItem.score_total =
+              form.model.evaluate(
+                `${isMulti ? "sum" : "max"}(${instanceName}/jr:score)`,
+                "number"
+              ) || 0;
+
+            if (tocItem.score_total > 0) {
+              tocItem.score = value
+                ? form.model.evaluate(
+                    `sum(${instanceName}[${value
+                      .split(" ")
+                      .map((v: string) => `contains(name, "${v}")`)
+                      .join(" or ")}]/jr:score)`,
+                    "number"
+                  ) || 0
+                : 0;
+            }
+          }
+          if (tocItem.element.classList.contains("disabled")) {
+            tocItem.score = 0;
+          }
+        }
+      }
+    }
+
+    calculateScores(tocArray);
+    // Filter out items that are not root items (i.e., items with no parent)
+    return tocArray.filter((tocItem) => !tocItem.level);
+  }
+
+  const result = buildTree(getToc(form));
+
+  const score = result.map((v) => v.score).reduce((p, c) => p + c, 0);
+
+  const total = result.map((v) => v.score_total).reduce((p, c) => p + c, 0);
+  return { result, score, total };
+};
 const root = document.querySelector<HTMLDivElement>("#app")!;
 
 setupDropdown(document.querySelector<HTMLDivElement>("#dropdown")!);
@@ -213,15 +358,14 @@ export async function init(
       // required string of the default instance defined in the XForm
       modelStr: result.model,
       // optional string of an existing instance to be edited
-      instanceStr:
-        localStorage.getItem("form-odk") ||
-        `
-      <data>
-          <user_fullname>John Do</user_fullname>
-          <user_deg>Full Stack Dev</user_deg>
-          <user_org>who</user_org>
-      </data>
-      `,
+      instanceStr: localStorage.getItem("form-odk") || "",
+      //   `
+      // <data>
+      //     <user_fullname>John Do</user_fullname>
+      //     <user_deg>Full Stack Dev</user_deg>
+      //     <user_org>who</user_org>
+      // </data>
+      // `,
       // optional boolean whether this instance has ever been submitted before
       submitted: false,
       // optional array of external data objects containing:
@@ -261,12 +405,25 @@ export async function init(
 
   window.odk_form = form;
 
-  // add date in 'ISO 8601' format
-  const form_logo = document.querySelector("section.form-logo");
+  // add date in 'ISO 8601' format and log the all question
+  const form_logo = document.querySelector<HTMLElement>("section.form-logo");
   if (form_logo) {
     add_now(form_logo);
-    form_logo.addEventListener("click", () => {
-      add_now(form_logo);
+    form_logo.addEventListener("click", (event) => {
+      // if ctrl keypress
+      if (event.ctrlKey) {
+        add_now(form_logo);
+      } else {
+        // call the log all question
+        const { result, score, total } = getScore(form);
+        logTOC(result);
+        console.log(
+          JSON.stringify({ score, total }) +
+            " %c" +
+            "★".repeat((score * (100 / total)) / 10),
+          "color: red"
+        );
+      }
     });
   }
 
@@ -299,115 +456,7 @@ export async function init(
 
   // on change
   document.addEventListener("xforms-value-changed", () => {
-    function buildTree(tocArray: TOC_ITEMS) {
-      const map = new Map<TOC_ITEM["tocParentId"], TOC_ITEMS>(); // Using a Map to efficiently group TOC items by their parent ID
-
-      // First pass: Group TOC items by their parent ID
-      for (const tocItem of tocArray) {
-        const parentId = tocItem.tocParentId;
-        if (!map.has(parentId)) {
-          map.set(parentId, []);
-        }
-        map.get(parentId)!.push(tocItem);
-      }
-
-      // Second pass: Append child TOC items to their respective parent's 'child' array
-      for (const tocItem of tocArray) {
-        const parentId = tocItem.tocId;
-        if (map.has(parentId)) {
-          tocItem.children = map.get(parentId)!;
-        }
-      }
-
-      // Third pass: Calculate scores
-      function calculateScores(tocItems: TOC_ITEMS) {
-        for (const tocItem of tocItems) {
-          if (tocItem.children && tocItem.children.length > 0) {
-            // Recursively calculate scores for children
-            calculateScores(tocItem.children);
-            // Calculate total score as sum of children's scores
-            tocItem.score_total = tocItem.children.reduce(
-              (total, child) => total + (child.score_total || 0),
-              0
-            );
-            tocItem.score = tocItem.children.reduce(
-              (total, child) => total + (child.score || 0),
-              0
-            );
-
-            const repeat = [...tocItem.element.children].filter((node) => {
-              return node.classList?.contains("or-repeat");
-            });
-
-            if (repeat.length > 0) {
-              const maxCount =
-                form.model.evaluate(`count(${tocItem.name})`, "number") || 1;
-
-              tocItem.score = tocItem.score / maxCount;
-              tocItem.score_total = tocItem.score_total / maxCount;
-            }
-          } else {
-            let calculate_name = "";
-            if (tocItem.name.match(/\/\w+\[\d+\]/)) {
-              const name = tocItem.name.split("[")[0];
-              const number = tocItem.name.split("[")[1].split("]")[0];
-              calculate_name = name + "_score" + "[" + number + "]";
-            } else {
-              calculate_name = tocItem.name + "_score";
-            }
-            const calculate_value = form.model
-              .evaluate(calculate_name, "string")
-              .split(" ")
-              .map((v: string) => Number(v));
-            if (calculate_value.length === 2) {
-              tocItem.score = calculate_value[0];
-              tocItem.score_total = calculate_value[1];
-            } else {
-              const isMulti = !!tocItem.element.querySelector(
-                "input[type=checkbox]"
-              );
-              const value = form.model.evaluate(tocItem.name, "string");
-
-              const instanceName = tocItem.element
-                .querySelector("label.contains-ref-target")!
-                .getAttribute("data-items-path");
-
-              tocItem.score_total =
-                form.model.evaluate(
-                  `${isMulti ? "sum" : "max"}(${instanceName}/jr:score)`,
-                  "number"
-                ) || 0;
-
-              tocItem.score = value
-                ? form.model.evaluate(
-                    `sum(${instanceName}[${value
-                      .split(" ")
-                      .map((v: string) => `contains(name, "${v}")`)
-                      .join(" or ")}]/jr:score)`,
-                    "number"
-                  ) || 0
-                : 0;
-            }
-            if (tocItem.element.classList.contains("disabled")) {
-              tocItem.score = 0;
-            }
-          }
-        }
-      }
-
-      calculateScores(tocArray);
-      // Filter out items that are not root items (i.e., items with no parent)
-      return tocArray.filter((tocItem) => !tocItem.level);
-    }
-
-    const result = buildTree(getToc(form));
-
-    const score = result.map((v) => v.score).reduce((p, c) => p + c, 0);
-
-    const total = result.map((v) => v.score_total).reduce((p, c) => p + c, 0);
-
-    // Total score
-    console.log(result);
+    const { total, score } = getScore(form);
 
     document.querySelector("section.form-logo")!.innerHTML =
       JSON.stringify({
@@ -415,9 +464,6 @@ export async function init(
         total: total.toFixed(0),
         parentage: (score * (100 / total)).toFixed(1) + "%",
       }) || "";
-
-    // console.log(result);
-    console.log("%c" + "★".repeat(15), "color: red");
   });
 }
 
