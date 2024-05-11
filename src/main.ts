@@ -35,8 +35,8 @@ const getTitle = (el: TOC_ITEM["element"]) => {
       tocItemText = hintEl.textContent;
     }
   }
-  tocItemText =
-    tocItemText.length > 25 ? tocItemText.slice(0, 25) + "..." : tocItemText;
+  // tocItemText =
+  //   tocItemText.length > 25 ? tocItemText.slice(0, 25) + "..." : tocItemText;
   return tocItemText;
 };
 
@@ -49,7 +49,7 @@ function logTOC(tocItems: TOC_ITEMS, prefix = "") {
     console.log(
       `${currentPrefix} [${item.score}/${item.score_total}] ${
         isMulti ? "*" : ""
-      }${item.label}`
+      }${item.label.length > 25 ? item.label.slice(0, 25) + "..." : item.label}`
     );
     if (item.children) {
       const childPrefix = prefix + (isLast ? "    " : "│   ");
@@ -87,7 +87,7 @@ const getToc = (form: typeof Form) => {
         groupParents.length > 0 ? groupParents[groupParents.length - 1] : null,
       tocId: index,
       tocParentId: null,
-      name: getName(element),
+      name: getName(element).replace("/data/", ""),
       label: getTitle(element),
       score: 0,
       score_total: 0,
@@ -224,9 +224,53 @@ const getScore = (form: typeof Form) => {
 
   const score = result.map((v) => v.score).reduce((p, c) => p + c, 0);
 
-  const total = result.map((v) => v.score_total).reduce((p, c) => p + c, 0);
-  return { result, score, total };
+  const score_total = result
+    .map((v) => v.score_total)
+    .reduce((p, c) => p + c, 0);
+  return { result, score, score_total };
 };
+
+window.getScore = getScore;
+
+interface SUBMIT_SCORE {
+  name: string;
+  label: string;
+  score: number;
+  score_total: number;
+  children?: SUBMIT_SCORE[];
+}
+
+const getSubmitDict = (obj: {
+  result: TOC_ITEMS;
+  score: number;
+  score_total: number;
+}) => {
+  const { result, score, score_total } = obj;
+  const getDict = ({
+    name,
+    label,
+    score,
+    score_total,
+    children,
+  }: TOC_ITEM): SUBMIT_SCORE => {
+    return {
+      name,
+      label,
+      score,
+      score_total,
+      ...(children ? { children: children.map(getDict) } : {}),
+    };
+  };
+  return {
+    score,
+    score_total,
+    parentage: (score * (100 / score_total)).toFixed(1) + "%",
+    result: result.map<SUBMIT_SCORE>(getDict),
+  };
+};
+// @ts-ignore
+window.getSubmitDict = getSubmitDict;
+
 const root = document.querySelector<HTMLDivElement>("#app")!;
 
 setupDropdown(document.querySelector<HTMLDivElement>("#dropdown")!);
@@ -415,12 +459,13 @@ export async function init(
         add_now(form_logo);
       } else {
         // call the log all question
-        const { result, score, total } = getScore(form);
+        const { result, score, score_total } = getScore(form);
+        console.log(result);
         logTOC(result);
         console.log(
-          JSON.stringify({ score, total }) +
+          JSON.stringify({ score, score_total }) +
             " %c" +
-            "★".repeat((score * (100 / total)) / 10),
+            "★".repeat((score * (100 / score_total)) / 10),
           "color: red"
         );
       }
@@ -456,13 +501,13 @@ export async function init(
 
   // on change
   document.addEventListener("xforms-value-changed", () => {
-    const { total, score } = getScore(form);
+    const { score_total, score } = getScore(form);
 
     document.querySelector("section.form-logo")!.innerHTML =
       JSON.stringify({
         score: score.toFixed(1),
-        total: total.toFixed(0),
-        parentage: (score * (100 / total)).toFixed(1) + "%",
+        total: score_total.toFixed(0),
+        parentage: (score * (100 / score_total)).toFixed(1) + "%",
       }) || "";
   });
 }

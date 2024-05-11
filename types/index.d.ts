@@ -5,6 +5,11 @@ declare global {
   interface Window {
     xform?: TransformedSurvey<{ x_form: string }>;
     odk_form?: Form;
+    getScore: (form: Form) => {
+      result: TOC_ITEM[];
+      score: number;
+      score_total: number;
+    };
   }
 }
 
