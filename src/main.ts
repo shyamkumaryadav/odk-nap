@@ -394,6 +394,8 @@ export async function init(
   // result.form;
   const formEl = document.querySelector("form.or");
 
+  const parser = new DOMParser();
+
   window.xform = result;
 
   const form = new Form(
@@ -418,26 +420,42 @@ export async function init(
       //   id: 'yna',
       //   xml: parser.parseFromString(
       //     `<root>
-      //     </item>
-      //       <name>0001</name>
-      //       <label>Johnson</label>
-      //       <rooms>2</rooms>
-      //     </item>
-      //   </root>`,
+      //          <item>
+      //            <name>0001</name>
+      //            <label>Johnson</label>
+      //            <rooms>2</rooms>
+      //          </item>
+      //      </root>`,
       //     'text/xml'
       //   ),
       // },
-      // external: [
-      //   {
-      //     id: "participants",
-      //     xml: `<root>
-      //       <item>
-      //         <name>0001</name>
-      //         <label>Johnson</label>
-      //         <rooms>2</rooms>
-      //       </item>`,
-      //   },
-      // ],
+      // if instance[@id=user] avalabel or not in result model
+      external: result.model.includes('src="jr://file/user.xml"')
+        ? [
+            // type: xml-external name: id
+            {
+              id: "user",
+              xml: parser.parseFromString(
+                `<root>
+            <item>
+              <name>username</name>
+              <value>Admin User</value>
+            </item>
+            <item>
+              <name>email</name>
+              <value>test@123.com</value>
+            </item>
+            <item>
+              <name>is_active</name>
+              <value>1</value>
+            </item>
+          </root>
+            `,
+                "text/xml"
+              ),
+            },
+          ]
+        : [],
       // optional object of session properties
       // 'deviceid', 'username', 'email', 'phonenumber', 'simserial', 'subscriberid'
       session: {},
