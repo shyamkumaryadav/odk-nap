@@ -58,7 +58,7 @@ function logTOC(tocItems: TOC_ITEMS, prefix = "") {
   });
 }
 
-const getToc = (form: typeof Form) => {
+const getToc = (form: typeof Form = window.odk_form) => {
   const tocItems: TOC_ITEMS = [];
 
   const tocElements = [
@@ -116,7 +116,7 @@ const getToc = (form: typeof Form) => {
   );
 };
 
-const getScore = (form: typeof Form) => {
+const getScore = (form: typeof Form = window.odk_form) => {
   function buildTree(tocArray: TOC_ITEMS) {
     const map = new Map<TOC_ITEM["tocParentId"], TOC_ITEMS>(); // Using a Map to efficiently group TOC items by their parent ID
 
@@ -278,41 +278,56 @@ setupLocalStorage(document.querySelector<HTMLDivElement>("#localstorage")!);
 xmlDebug();
 
 export async function init(
-  form_url = new URLSearchParams(window.location.search).get("form")
+  form_ = localStorage.getItem("xform-odk") ||
+    new URLSearchParams(window.location.search).get("form")
 ) {
-  if (!form_url) {
+  if (!form_) {
     root.innerHTML = "set in url `?form=...` or Upload a valid XML File ";
-    // add a form input to upload a file of xml type get a blob url of file set in form_url
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".xml";
+    // add a form input to upload a file of xml type get a blob url of file set in form_
+    const input = document.createElement("textarea");
+    input.classList.add("border", "mb-3", "py-2", "px-3");
+    input.placeholder = "Paste XML here";
+
     input.addEventListener("change", (e) => {
-      const file = (e.target as HTMLInputElement).files![0];
-      init(URL.createObjectURL(file));
+      const value = (e.target as HTMLTextAreaElement).value;
+      if (value) {
+        init(value);
+      }
     });
     root.appendChild(input);
     return;
   }
-  const xform = await fetch(form_url)
-    .then((res) => {
-      if (!res.ok) {
-        throw new Error("Network response was not ok");
-      }
-      return res.text();
-    })
-    .catch((err) => {
-      root.innerHTML =
-        err + " Change the url to a valid form click to hard reload page";
-      root.classList.add("text-red-500", "font-bold", "text-2xl");
-      root.addEventListener("click", () => {
-        window.location.search = "";
-      });
-      return err;
-    });
+  const isURL = form_.endsWith(".xml");
+
+  const xform = isURL
+    ? await fetch(form_)
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error("Network response was not ok");
+          }
+          return res.text();
+        })
+        .catch((err) => {
+          root.innerHTML =
+            err + " Change the url to a valid form click to hard reload page";
+          root.classList.add("text-red-500", "font-bold", "text-2xl");
+          root.addEventListener("click", () => {
+            window.location.search = "";
+          });
+          return err;
+        })
+    : form_;
+
+  if (typeof xform === "string") {
+    localStorage.setItem("xform-odk", xform);
+  }
   const result = await transform({
     xform: xform,
     theme: "mnm",
     x_form: xform,
+    media: {
+      "national.csv": "data:text/csv;base64,MSwyLDMsNA==",
+    },
   });
 
   root.innerHTML = "";
@@ -387,14 +402,24 @@ export async function init(
     >
     Save Draft
     </button>
-    <input class="inline-block" type="file" id="load-mock" />
+    <button
+      type="button"
+      id="reload-localstorage"
+      class="bg-green-500 hover:bg-green-200 px-3 py-2 rounded ml-3 transition-colors duration-200 ease-in-out"
+      tabindex="1"
+    >
+      &#x21bb;
+    </button>
+    <textarea class="border mb-3 py-2 px-3" placeholder="Paste XML here" id="load-mock"></textarea>
+    <button id="delete-localstorage" class="bg-red-500 hover:bg-red-200 px-3 py-2 rounded ml-3 transition-colors duration-200 ease-in-out">
+      Delete Local Storage
+    </button>
+
   </div>`;
   root.appendChild(div_);
 
   // result.form;
   const formEl = document.querySelector("form.or");
-
-  const parser = new DOMParser();
 
   window.xform = result;
 
@@ -420,42 +445,26 @@ export async function init(
       //   id: 'yna',
       //   xml: parser.parseFromString(
       //     `<root>
-      //          <item>
-      //            <name>0001</name>
-      //            <label>Johnson</label>
-      //            <rooms>2</rooms>
-      //          </item>
-      //      </root>`,
+      //     </item>
+      //       <name>0001</name>
+      //       <label>Johnson</label>
+      //       <rooms>2</rooms>
+      //     </item>
+      //   </root>`,
       //     'text/xml'
       //   ),
       // },
-      // if instance[@id=user] avalabel or not in result model
-      external: result.model.includes('src="jr://file/user.xml"')
-        ? [
-            // type: xml-external name: id
-            {
-              id: "user",
-              xml: parser.parseFromString(
-                `<root>
-            <item>
-              <name>username</name>
-              <value>Admin User</value>
-            </item>
-            <item>
-              <name>email</name>
-              <value>test@123.com</value>
-            </item>
-            <item>
-              <name>is_active</name>
-              <value>1</value>
-            </item>
-          </root>
-            `,
-                "text/xml"
-              ),
-            },
-          ]
-        : [],
+      // external: [
+      //   {
+      //     id: "participants",
+      //     xml: `<root>
+      //       <item>
+      //         <name>0001</name>
+      //         <label>Johnson</label>
+      //         <rooms>2</rooms>
+      //       </item>`,
+      //   },
+      // ],
       // optional object of session properties
       // 'deviceid', 'username', 'email', 'phonenumber', 'simserial', 'subscriberid'
       session: {},
@@ -501,20 +510,29 @@ export async function init(
   const draftButton = document.querySelector("#draft-page")!;
   draftButton.addEventListener("click", () => {
     form.view.html.dispatchEvent(event.BeforeSave());
-    localStorage.setItem(`form-${form_url}`, form.getDataStr());
     // document.getElementById("reload-localstorage")?.click();
   });
 
   const loadMock = document.querySelector("#load-mock")!;
   loadMock.addEventListener("change", (e) => {
-    const file = (e.target as HTMLInputElement).files![0];
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const data = e.target?.result;
-      form.model.mergeXml(data);
-      form.resetView();
-    };
-    reader.readAsText(file);
+    const value = (e.target as HTMLTextAreaElement).value;
+    if (value) {
+      localStorage.setItem("form-odk", value);
+      window.location.reload();
+    }
+  });
+
+  const deleteLocalStorage = document.querySelector("#delete-localstorage")!;
+
+  deleteLocalStorage.addEventListener("click", () => {
+    localStorage.removeItem("form-odk");
+    window.location.reload();
+  });
+
+  const reloadLocalStorage = document.querySelector("#reload-localstorage")!;
+  reloadLocalStorage.addEventListener("click", () => {
+    localStorage.removeItem("xform-odk");
+    window.location.reload();
   });
 
   // on change
