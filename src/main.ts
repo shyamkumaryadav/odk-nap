@@ -1,11 +1,17 @@
 import event from "enketo-core/src/js/event";
 // @ts-ignore
-import { Form } from "enketo-core";
+import { Form, FormModel } from "enketo-core";
 import { getAncestors, getSiblingElement } from "enketo-core/src/js/dom-utils";
 import { transform } from "enketo-transformer/web";
 import "./styles/main.scss";
 
-import { xmlDebug, setupDropdown, setupLocalStorage, add_now } from "./utils";
+import {
+  xmlDebug,
+  setupDropdown,
+  setupLocalStorage,
+  add_now,
+  csvToXml,
+} from "./utils";
 import { TOC_ITEM, TOC_ITEMS } from "../types";
 
 const getName = (el: TOC_ITEM["element"]) => {
@@ -278,8 +284,8 @@ setupLocalStorage(document.querySelector<HTMLDivElement>("#localstorage")!);
 xmlDebug();
 
 export async function init(
-  form_ = localStorage.getItem("xform-odk") ||
-    new URLSearchParams(window.location.search).get("form")
+  form_ = new URLSearchParams(window.location.search).get("form") ||
+    localStorage.getItem("xform-odk")
 ) {
   if (!form_) {
     root.innerHTML = "set in url `?form=...` or Upload a valid XML File ";
@@ -299,25 +305,24 @@ export async function init(
   }
   const isURL = form_.endsWith(".xml");
 
-  const xform = isURL
-    ? await fetch(form_)
-        .then((res) => {
-          if (!res.ok) {
-            throw new Error("Network response was not ok");
-          }
-          return res.text();
-        })
-        .catch((err) => {
-          root.innerHTML =
-            err + " Change the url to a valid form click to hard reload page";
-          root.classList.add("text-red-500", "font-bold", "text-2xl");
-          root.addEventListener("click", () => {
-            window.location.search = "";
-          });
-          return err;
-        })
-    : form_;
-
+  let xform = form_;
+  if (isURL) {
+    try {
+      const res = await fetch(form_);
+      if (!res.ok) {
+        throw new Error("Network response was not ok");
+      }
+      xform = await res.text();
+    } catch (err) {
+      root.innerHTML =
+        err + " Change the url to a valid form click to hard reload page";
+      root.classList.add("text-red-500", "font-bold", "text-2xl");
+      root.addEventListener("click", () => {
+        window.location.search = "";
+      });
+      return err;
+    }
+  }
   if (typeof xform === "string") {
     localStorage.setItem("xform-odk", xform);
   }
@@ -326,7 +331,9 @@ export async function init(
     theme: "mnm",
     x_form: xform,
     media: {
-      "national.csv": "data:text/csv;base64,MSwyLDMsNA==",
+      "national.csv": "/odk-nap/national.csv",
+      "state.csv": "/odk-nap/state.csv",
+      "district.csv": "/odk-nap/district.csv",
     },
   });
 
@@ -418,10 +425,87 @@ export async function init(
   </div>`;
   root.appendChild(div_);
 
-  // result.form;
+  const model = result.model;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(model, "text/xml");
+  const nodes = doc.querySelectorAll("[src]");
+  const externalData: {
+    id: string;
+    xml: Document;
+  }[] = [];
+  for (const node of nodes) {
+    const src = node.getAttribute("src")!;
+    try {
+      const res = await fetch(src);
+      const contentType = res.headers.get("Content-Type")!;
+      const responseData = await res.text();
+      let result: Document;
+      switch (contentType) {
+        case "text/csv":
+          result = csvToXml(responseData);
+          break;
+        case "text/xml":
+          result = parser.parseFromString(responseData, contentType);
+          break;
+        default:
+          console.error(
+            "External data not served with expected Content-Type.",
+            contentType
+          );
+          result = parser.parseFromString(responseData, "text/xml");
+      }
+      externalData.push({
+        id: node.getAttribute("id")!,
+        xml: result,
+      });
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
   const formEl = document.querySelector("form.or");
 
   window.xform = result;
+
+  function _prepareInstance(
+    modelStr: string,
+    defaults: {
+      [key: string]: string | number | boolean | null | undefined;
+    }
+  ) {
+    let model;
+    let init_model;
+    let existingInstance = null;
+
+    for (const path in defaults) {
+      if (Object.prototype.hasOwnProperty.call(defaults, path)) {
+        model =
+          model ||
+          new FormModel(modelStr, {
+            full: false,
+          });
+        init_model = init_model || model.init();
+
+        if (Object.prototype.hasOwnProperty.call(defaults, path)) {
+          // if this fails, the FormModel will output a console error and ignore the instruction
+          model.node(path).setVal(defaults[path]);
+        }
+        // TODO: would be good to not include nodes that weren't in the defaults parameter
+        // HOWEVER, that would also set number of repeats to 0, which may be undesired
+        // TODO: would be good to just pass model along instead of converting to string first
+        existingInstance = model.getStr();
+      }
+    }
+
+    return existingInstance;
+  }
+
+  const defaults = {
+    full_name: "Admin",
+    email: "ABC@123.com",
+    phone_number: "9999912345",
+    designation: 3,
+  };
 
   const form = new Form(
     formEl,
@@ -429,42 +513,12 @@ export async function init(
       // required string of the default instance defined in the XForm
       modelStr: result.model,
       // optional string of an existing instance to be edited
-      instanceStr: localStorage.getItem("form-odk") || "",
-      //   `
-      // <data>
-      //     <user_fullname>John Do</user_fullname>
-      //     <user_deg>Full Stack Dev</user_deg>
-      //     <user_org>who</user_org>
-      // </data>
-      // `,
+      instanceStr:
+        localStorage.getItem("form-odk") ||
+        _prepareInstance(result.model, defaults),
       // optional boolean whether this instance has ever been submitted before
       submitted: false,
-      // optional array of external data objects containing:
-      // {id: 'someInstanceId', xml: XMLDocument}
-      // {
-      //   id: 'yna',
-      //   xml: parser.parseFromString(
-      //     `<root>
-      //     </item>
-      //       <name>0001</name>
-      //       <label>Johnson</label>
-      //       <rooms>2</rooms>
-      //     </item>
-      //   </root>`,
-      //     'text/xml'
-      //   ),
-      // },
-      // external: [
-      //   {
-      //     id: "participants",
-      //     xml: `<root>
-      //       <item>
-      //         <name>0001</name>
-      //         <label>Johnson</label>
-      //         <rooms>2</rooms>
-      //       </item>`,
-      //   },
-      // ],
+      external: externalData,
       // optional object of session properties
       // 'deviceid', 'username', 'email', 'phonenumber', 'simserial', 'subscriberid'
       session: {},
@@ -511,6 +565,7 @@ export async function init(
   draftButton.addEventListener("click", () => {
     form.view.html.dispatchEvent(event.BeforeSave());
     // document.getElementById("reload-localstorage")?.click();
+    localStorage.setItem("form-odk", form.model.getStr());
   });
 
   const loadMock = document.querySelector("#load-mock")!;
@@ -547,5 +602,3 @@ export async function init(
       }) || "";
   });
 }
-
-init();

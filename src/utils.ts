@@ -1,4 +1,5 @@
 import { init } from "./main";
+import Papa from "papaparse";
 
 const btnClass = [
   "px-3",
@@ -194,4 +195,129 @@ export function xmlDebug() {
       pre.innerHTML = escapedXmlContent;
     }
   });
+}
+
+const XML_LOCAL_NAME_PATTERN = (() => {
+  const nameStartCharRanges = [
+    "A-Z",
+    "a-z",
+    "_",
+    "\\u{C0}-\\u{D6}",
+    "\\u{D8}-\\u{F6}",
+    "\\u{F8}-\\u{2FF}",
+    "\\u{370}-\\u{37D}",
+    "\\u{37F}-\\u{1FFF}",
+    "\\u{200C}-\\u{200D}",
+    "\\u{2070}-\\u{218F}",
+    "\\u{2C00}-\\u{2FEF}",
+    "\\u{3001}-\\u{D7FF}",
+    "\\u{F900}-\\u{FDCF}",
+    "\\u{FDF0}-\\u{FFFD}",
+    "\\u{10000}-\\u{EFFFF}",
+  ];
+  const nameCharRanges = [
+    "-", // Must come first or last in a `RegExp` character class
+    ...nameStartCharRanges,
+    // TODO: this looks like probably a mistake??
+    '"."',
+    "\\u{B7}",
+    "0-9",
+    // TODO: is this actually a "misleading character class" range?
+    "\\u{0300}-\\u{036F}",
+    "\\u{203F}-\\u{2040}",
+  ];
+
+  const nameStartChar = `[${nameStartCharRanges.join("")}]`;
+  const nameChar = `[${nameCharRanges.join("")}]`;
+  const name = `^${nameStartChar}${nameChar}*$`;
+
+  // eslint-disable-next-line no-misleading-character-class
+  return new RegExp(name, "u");
+})();
+
+/**
+ * @param {string} csv
+ */
+function csvToArray(csv: string) {
+  const input = csv.trim();
+  const options = {
+    skipEmptyLines: true,
+  };
+
+  let result = Papa.parse<string[]>(input, options);
+
+  if (result.errors.some((error) => error.code === "UndetectableDelimiter")) {
+    const parsed = Papa.parse<string[]>(input, {
+      ...options,
+      delimiter: ",",
+    });
+
+    if (
+      parsed.errors.length === 0 &&
+      parsed.data.every((line) => line.length === 1)
+    ) {
+      result = parsed;
+    }
+  }
+
+  if (result.errors.length) {
+    let [error] = result.errors;
+
+    // if (!(error instanceof Error)) {
+    //   error = new Error(error.message ?? String(error));
+    // }
+
+    throw error;
+  }
+
+  return result.data;
+}
+
+const throwInvalidCSVHeaderToXMLLocalName = (name: string) => {
+  // Note: this is more restrictive than XML spec.
+  // We cannot accept namespaces prefixes because there is no way of knowing the namespace uri in CSV.
+  if (XML_LOCAL_NAME_PATTERN.test(name)) {
+    return true;
+  }
+
+  throw new Error(
+    `CSV column heading "${name}" cannot be turned into a valid XML element`
+  );
+};
+
+function arrayToXml(rows: string[][]) {
+  // var xmlStr;
+  let headers = rows.shift()!;
+  // var langAttrs = [];
+
+  // Trim the headings
+  headers = headers.map((header) => header.trim());
+
+  // Check if headers are valid XML node names
+  headers.every(throwInvalidCSVHeaderToXMLLocalName);
+
+  // create an XML Document
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString("<root></root>", "text/xml");
+  rows.forEach((row) => {
+    const item = xmlDoc.createElement("item");
+    xmlDoc.firstChild!.appendChild(item);
+    row.forEach((value, index) => {
+      const node = xmlDoc.createElement(headers[index]);
+      // if (langs[index]) {
+      //   node.setAttribute("lang", langs[index]);
+      // }
+      // encoding of XML entities is done automatically
+      node.textContent = value.trim();
+      item.appendChild(node);
+    });
+  });
+
+  return xmlDoc;
+}
+
+export function csvToXml(csv: string) {
+  const result = csvToArray(csv);
+
+  return arrayToXml(result);
 }
