@@ -331,9 +331,14 @@ export async function init(
     theme: "mnm",
     x_form: xform,
     media: {
-      "national.csv": "/odk-nap/national.csv",
-      "state.csv": "/odk-nap/state.csv",
-      "district.csv": "/odk-nap/district.csv",
+      "nation.xml": "/odk-nap/accounts_location/nation.xml",
+      "state.xml": "/odk-nap/accounts_location/state.xml",
+      "district.xml": "/odk-nap/accounts_location/district.xml",
+      "subdistrict.xml": "/odk-nap/accounts_location/subdistrict.xml",
+      "block.xml": "/odk-nap/accounts_location/block.xml",
+      "level.xml": "/odk-nap/accounts_location/level.xml",
+      "organization.xml": "/odk-nap/accounts_location/organization.xml",
+      "designation.xml": "/odk-nap/accounts_location/designation.xml",
     },
   });
 
@@ -448,10 +453,6 @@ export async function init(
           result = parser.parseFromString(responseData, contentType);
           break;
         default:
-          console.error(
-            "External data not served with expected Content-Type.",
-            contentType
-          );
           result = parser.parseFromString(responseData, "text/xml");
       }
       externalData.push({

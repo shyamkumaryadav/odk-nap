@@ -92,25 +92,17 @@ class DatepickerExtended extends Widget {
 
     this._setFocusHandler(this.$widgetI);
 
-    this.enable();
+    this.$widgetB.classList.remove("hidden");
+    this.$widgetI.removeAttribute("disabled");
     // It is much easier to first enable and disable, and not as bad it seems, since readonly will become dynamic eventually.
     if (this.props.readonly) {
-      this.disable();
+      this.$widgetB.classList.add("hidden");
+      this.$widgetI.setAttribute("disabled", "disabled");
     }
   }
 
   update() {
     this.$datepicker.setDate(new Date(this.originalInputValue));
-  }
-
-  disable() {
-    this.$widgetB.classList.add("hidden");
-    this.$widgetI.setAttribute("disabled", "disabled");
-  }
-
-  enabled() {
-    this.$widgetB.classList.remove("hidden");
-    this.$widgetI.removeAttribute("disabled");
   }
 
   /**
