@@ -12,6 +12,10 @@ export default defineConfig({
         replacement: "./src/widget/index.ts",
       },
       {
+        find: "enketo/dialog",
+        replacement: "./src/dialog.ts",
+      },
+      {
         find: "enketo/config",
         replacement: "./enketo.config.ts",
       },
