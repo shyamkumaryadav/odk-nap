@@ -1,2 +1,13 @@
 *
 !.gitignore
+!nation.xml
+!state.xml
+!district.xml
+!subdistrict.xml
+!block.xml
+!health_facility.xml
+!session_site.xml
+!full_name.xml
+!designation.xml
+!organization.xml
+!level.xml
