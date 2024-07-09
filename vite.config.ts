@@ -2,9 +2,6 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   base: "/odk-nap/",
-  build: {
-    copyPublicDir: false,
-  },
   resolve: {
     alias: [
       {
