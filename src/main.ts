@@ -291,6 +291,8 @@ export async function init(
     root.innerHTML = "set in url `?form=...` or Upload a valid XML File ";
     // add a form input to upload a file of xml type get a blob url of file set in form_
     const input = document.createElement("textarea");
+    input.cols = 100;
+    input.rows = 10;
     input.classList.add("border", "mb-3", "py-2", "px-3");
     input.placeholder = "Paste XML here";
 
@@ -331,14 +333,17 @@ export async function init(
     theme: "mnm",
     x_form: xform,
     media: {
-      "nation.xml": "/odk-nap/accounts_location/nation.xml",
-      "state.xml": "/odk-nap/accounts_location/state.xml",
-      "district.xml": "/odk-nap/accounts_location/district.xml",
-      "subdistrict.xml": "/odk-nap/accounts_location/subdistrict.xml",
-      "block.xml": "/odk-nap/accounts_location/block.xml",
-      "level.xml": "/odk-nap/accounts_location/level.xml",
-      "organization.xml": "/odk-nap/accounts_location/organization.xml",
-      "designation.xml": "/odk-nap/accounts_location/designation.xml",
+      "nation.xml": "/odk-nap/nation.xml",
+      "state.xml": "/odk-nap/state.xml",
+      "district.xml": "/odk-nap/district.xml",
+      "subdistrict.xml": "/odk-nap/subdistrict.xml",
+      "block.xml": "/odk-nap/block.xml",
+      "health_facility.xml": "/odk-nap/health_facility.xml",
+      "session_site.xml": "/odk-nap/session_site.xml",
+      "full_name.xml": "/odk-nap/full_name.xml",
+      "designation.xml": "/odk-nap/designation.xml",
+      "organization.xml": "/odk-nap/organization.xml",
+      "level.xml": "/odk-nap/level.xml",
     },
   });
 
@@ -366,6 +371,14 @@ export async function init(
 </header>` +
     result.form +
     ` <div class="form-footer">
+     <button
+      type="button"
+      id="reload-localstorage"
+      class="bg-green-500 hover:bg-green-200 px-3 py-2 rounded ml-3 transition-colors duration-200 ease-in-out"
+      tabindex="1"
+    >
+      &#x21bb;
+    </button>
     <button
       type="button"
       id="first-page"
@@ -414,19 +427,10 @@ export async function init(
     >
     Save Draft
     </button>
-    <button
-      type="button"
-      id="reload-localstorage"
-      class="bg-green-500 hover:bg-green-200 px-3 py-2 rounded ml-3 transition-colors duration-200 ease-in-out"
-      tabindex="1"
-    >
-      &#x21bb;
-    </button>
-    <textarea class="border mb-3 py-2 px-3" placeholder="Paste XML here" id="load-mock"></textarea>
     <button id="delete-localstorage" class="bg-red-500 hover:bg-red-200 px-3 py-2 rounded ml-3 transition-colors duration-200 ease-in-out">
       Delete Local Storage
     </button>
-
+    <textarea class="border mb-3 py-2 px-3 !h-24" cols="100" placeholder="Paste XML Instance Data here" id="load-mock"></textarea>
   </div>`;
   root.appendChild(div_);
 
@@ -464,7 +468,8 @@ export async function init(
     }
   }
 
-  const formEl = document.querySelector("form.or");
+  const formEl = document.querySelector("form.or")!;
+  formEl.classList.add("max-h-[80vh]", "overflow-y-auto", "p-10");
 
   window.xform = result;
 
