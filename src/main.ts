@@ -336,7 +336,7 @@ export async function init(
       "nation.xml": "/odk-nap/nation.xml",
       "state.xml": "/odk-nap/state.xml",
       "district.xml": "/odk-nap/district.xml",
-      "sub_district.xml": "/odk-nap/sub_district.xml",
+      "subdistrict.xml": "/odk-nap/subdistrict.xml",
       "block.xml": "/odk-nap/block.xml",
       "health_facility.xml": "/odk-nap/health_facility.xml",
       "sub_centre.xml": "/odk-nap/sub_centre.xml",
