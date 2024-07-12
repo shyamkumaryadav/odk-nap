@@ -471,6 +471,10 @@ export async function init(
   }
 
   const formEl = document.querySelector("form.or")!;
+  if (location.hash === "#page") {
+    formEl.classList.toggle("pages");
+  }
+
   formEl.classList.add("max-h-[80vh]", "overflow-y-auto", "p-10");
 
   window.xform = result;
@@ -496,7 +500,9 @@ export async function init(
 
         if (Object.prototype.hasOwnProperty.call(defaults, path)) {
           // if this fails, the FormModel will output a console error and ignore the instruction
-          model.node(path).setVal(defaults[path]);
+          if (model.node("//" + path).getElement()) {
+            model.node("//" + path).setVal(defaults[path]);
+          }
         }
         // TODO: would be good to not include nodes that weren't in the defaults parameter
         // HOWEVER, that would also set number of repeats to 0, which may be undesired
@@ -511,7 +517,7 @@ export async function init(
   const defaults = {
     full_name: "Admin",
     email: "ABC@123.com",
-    phone_number: "9999912345",
+    phone: "9999912345",
     designation: 3,
   };
 
