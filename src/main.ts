@@ -573,8 +573,40 @@ export async function init(
 
   const submitButton = document.querySelector("#submit-page")!;
   submitButton.addEventListener("click", () => {
-    form.validate();
+    // to not delay validation unnecessarily we only clear non-relevants if necessary
+    form.clearNonRelevant();
+
+    const $container = form.view.$;
+
+    // can't fire custom events on disabled elements therefore we set them all as valid
+    $container
+      .find(
+        "fieldset:disabled input, fieldset:disabled select, fieldset:disabled textarea, " +
+          "input:disabled, select:disabled, textarea:disabled"
+      )
+      .each(function (this: HTMLElement) {
+        form.setValid(this);
+      });
+
+    const validations = $container
+      .find(".question")
+      .addBack(".question")
+      .map(function (this: HTMLElement) {
+        // only trigger validate on first input and use a **pure CSS** selector (huge performance impact)
+        const elem = this.querySelector(
+          "input:enabled:not(.ignore), select:enabled:not(.ignore), textarea:enabled:not(.ignore)"
+        );
+        if (!elem) {
+          return Promise.resolve();
+        }
+
+        return form.validateInput(elem);
+      })
+      .toArray();
+
+    return Promise.all(validations);
   });
+
   const draftButton = document.querySelector("#draft-page")!;
   draftButton.addEventListener("click", () => {
     form.view.html.dispatchEvent(event.BeforeSave());
