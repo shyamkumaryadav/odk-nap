@@ -93,7 +93,7 @@ const getToc = (form: typeof Form = window.odk_form) => {
         groupParents.length > 0 ? groupParents[groupParents.length - 1] : null,
       tocId: index,
       tocParentId: null,
-      name: getName(element).replace("/data/", ""),
+      name: getName(element),
       label: getTitle(element),
       score: 0,
       score_total: 0,

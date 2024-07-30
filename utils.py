@@ -169,7 +169,7 @@ def get_data(survey):
         elif data_type == "group":
             res = get_data(item[CHILDREN])
 
-        result[name] = res
+        result[name] = item.get("default", res)
     return result
 
 
