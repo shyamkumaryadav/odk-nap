@@ -12,7 +12,7 @@ import {
   add_now,
   csvToXml,
 } from "./utils";
-import { TOC_ITEM, TOC_ITEMS } from "../types";
+import { FORM_SCORE, SUBMIT_SCORE, TOC_ITEM, TOC_ITEMS } from "../types";
 
 const getName = (el: TOC_ITEM["element"]) => {
   const isRepeat = el.parentElement?.classList.contains("or-repeat");
@@ -46,22 +46,82 @@ const getTitle = (el: TOC_ITEM["element"]) => {
   return tocItemText;
 };
 
-function logTOC(tocItems: TOC_ITEMS, prefix = "") {
-  tocItems.forEach((item, index) => {
-    const isLast = index === tocItems.length - 1;
-    const currentPrefix = prefix + (isLast ? "└───" : "├───");
-    const isMulti =
-      !item.children && !!item.element.querySelector("input[type=checkbox]");
-    console.log(
-      `${currentPrefix} [${item.score}/${item.score_total}] ${
-        isMulti ? "*" : ""
-      }${item.label.length > 25 ? item.label.slice(0, 25) + "..." : item.label}`
-    );
-    if (item.children) {
-      const childPrefix = prefix + (isLast ? "    " : "│   ");
-      logTOC(item.children, childPrefix);
+function logTOC(tocItems: TOC_ITEMS, score: number, total: number) {
+  // Create a new window
+  const newWindow = window.open("", "_blank");
+  const _X = window.odk_form;
+
+  // Check if the new window is opened
+  if (newWindow) {
+    // Generate HTML content for the new window
+    let htmlContent = `<!DOCTYPE html><html><head><title>${_X.surveyName}</title></head><body>
+                      <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%; text-align: center;">
+                      <caption>${_X.surveyName} (${_X.version})</caption>
+                      <thead><tr><th>Name</th><th>Score</th><th>Total Score</th></tr></thead><tbody>`;
+
+    function extractSuffixAndText(text: string) {
+      const regex = /^([A-Z](?:\.\d+)*)(\.?)\s*(.*)$/;
+      const match = text.match(regex);
+
+      if (match) {
+        let suffix = match[1];
+        if (match[2]) {
+          suffix = suffix.replace(/\.$/, ""); // Remove trailing dot from suffix if it exists
+        }
+        // Ensure that the suffix and text are correct
+        return [["<b>", "</b>"].join(suffix), match[3].trim() || null];
+      } else {
+        // If no valid suffix pattern is matched, return entire text as the second part
+        return [null, text.trim() || null];
+      }
     }
-  });
+
+    tocItems.forEach((item) => {
+      const [suffix, text] = extractSuffixAndText(item.label);
+      htmlContent += `<tr><td title="${text}">${suffix}</td><td>${item.score}</td><td>${item.score_total}</td></tr>`;
+    });
+
+    htmlContent += `</tbody><tfoot><tr><td>${(
+      (score * 100) / total || 0
+    ).toFixed(
+      1
+    )} %</td><td>${score}</td><td>${total}</td></tr></tfoot></table>`;
+
+    htmlContent += `<pre style="line-height: 1rem;background-image: linear-gradient(180deg, #eee 50%, #fff 50%); background-size: 100% 2rem; overflow: auto;">`;
+
+    // Recursive function to build HTML content
+    function buildHtml(tocItems: TOC_ITEMS, prefix = ""): void {
+      tocItems.forEach((item, index) => {
+        const isLast = index === tocItems.length - 1;
+        const currentPrefix = prefix + (isLast ? "└───" : "├───");
+        const isMulti =
+          !item.children &&
+          !!item.element.querySelector("input[type=checkbox]");
+
+        const styles = isMulti ? ["<mark>", "</mark>"] : ["", ""];
+        htmlContent += `${currentPrefix} [${item.score}/${
+          item.score_total
+        }] ${styles.join(extractSuffixAndText(item.label).join(" --> "))}\n`;
+
+        if (item.children) {
+          const childPrefix = prefix + (isLast ? "    " : "│   ");
+          buildHtml(item.children, childPrefix);
+        }
+      });
+    }
+
+    // Build the HTML content
+    buildHtml(tocItems);
+
+    // Close the <pre> tag and add the closing HTML tags
+    htmlContent += "</pre></body></html>";
+
+    // Write the HTML content to the new window
+    newWindow.document.write(htmlContent);
+    newWindow.document.close();
+  } else {
+    console.error("Failed to open a new window.");
+  }
 }
 
 const getToc = (form: typeof Form = window.odk_form) => {
@@ -116,142 +176,131 @@ const getToc = (form: typeof Form = window.odk_form) => {
   });
 
   return tocItems.filter(
-    ({ element }) =>
-      element.classList.contains("or-group") ||
-      element.classList.contains("simple-select")
+    ({ element }) => !element.classList.contains("non-select")
   );
 };
 
-const getScore = (form: typeof Form = window.odk_form) => {
-  function buildTree(tocArray: TOC_ITEMS) {
-    const map = new Map<TOC_ITEM["tocParentId"], TOC_ITEMS>(); // Using a Map to efficiently group TOC items by their parent ID
+const getScore = (form: typeof Form = window.odk_form) =>
+  new Promise<FORM_SCORE>((resolve) => {
+    function buildTree(tocArray: TOC_ITEMS) {
+      const map = new Map<TOC_ITEM["tocParentId"], TOC_ITEMS>(); // Using a Map to efficiently group TOC items by their parent ID
 
-    // First pass: Group TOC items by their parent ID
-    for (const tocItem of tocArray) {
-      const parentId = tocItem.tocParentId;
-      if (!map.has(parentId)) {
-        map.set(parentId, []);
+      // First pass: Group TOC items by their parent ID
+      for (const tocItem of tocArray) {
+        const parentId = tocItem.tocParentId;
+        if (!map.has(parentId)) {
+          map.set(parentId, []);
+        }
+        map.get(parentId)!.push(tocItem);
       }
-      map.get(parentId)!.push(tocItem);
-    }
 
-    // Second pass: Append child TOC items to their respective parent's 'child' array
-    for (const tocItem of tocArray) {
-      const parentId = tocItem.tocId;
-      if (map.has(parentId)) {
-        tocItem.children = map.get(parentId)!;
+      // Second pass: Append child TOC items to their respective parent's 'child' array
+      for (const tocItem of tocArray) {
+        const parentId = tocItem.tocId;
+        if (map.has(parentId)) {
+          tocItem.children = map.get(parentId)!;
+        }
       }
-    }
 
-    // Third pass: Calculate scores
-    function calculateScores(tocItems: TOC_ITEMS) {
-      for (const tocItem of tocItems) {
-        if (tocItem.children && tocItem.children.length > 0) {
-          // Recursively calculate scores for children
-          calculateScores(tocItem.children);
-          // Calculate total score as sum of children's scores
-          tocItem.score_total = tocItem.children.reduce(
-            (total, child) => total + (child.score_total || 0),
-            0
-          );
-          tocItem.score = tocItem.children.reduce(
-            (total, child) => total + (child.score || 0),
-            0
-          );
-
-          const repeat = [...tocItem.element.children].filter((node) => {
-            return node.classList?.contains("or-repeat");
-          });
-
-          if (repeat.length > 0) {
-            const maxCount =
-              form.model.evaluate(`count(${tocItem.name})`, "number") || 1;
-
-            tocItem.score = tocItem.score / maxCount;
-            tocItem.score_total = tocItem.score_total / maxCount;
-          }
-        } else {
-          let calculate_name = "";
-          if (tocItem.name.match(/\/\w+\[\d+\]/)) {
-            const name = tocItem.name.split("[")[0];
-            const number = tocItem.name.split("[")[1].split("]")[0];
-            calculate_name = name + "_score" + "[" + number + "]";
-          } else {
-            calculate_name = tocItem.name + "_score";
-          }
-          const calculate_value = form.model
-            .evaluate(calculate_name, "string")
-            .split(" ")
-            .map((v: string) => Number(v));
-          if (calculate_value.length === 2) {
-            tocItem.score = calculate_value[0];
-            tocItem.score_total = calculate_value[1];
-          } else {
-            const isMulti = !!tocItem.element.querySelector(
-              "input[type=checkbox]"
+      // Third pass: Calculate scores
+      function calculateScores(tocItems: TOC_ITEMS) {
+        for (const tocItem of tocItems) {
+          if (tocItem.children && tocItem.children.length > 0) {
+            // Recursively calculate scores for children
+            calculateScores(tocItem.children);
+            // Calculate total score as sum of children's scores
+            tocItem.score_total = tocItem.children.reduce(
+              (total, child) => total + (child.score_total || 0),
+              0
             );
-            const value = form.model.evaluate(tocItem.name, "string");
+            tocItem.score = tocItem.children.reduce(
+              (total, child) => total + (child.score || 0),
+              0
+            );
 
-            const instanceName = tocItem.element
-              .querySelector("label.contains-ref-target")!
-              .getAttribute("data-items-path");
+            const repeat = [...tocItem.element.children].filter((node) => {
+              return node.classList?.contains("or-repeat");
+            });
 
-            tocItem.score_total =
-              form.model.evaluate(
-                `${isMulti ? "sum" : "max"}(${instanceName}/jr:score)`,
-                "number"
-              ) || 0;
+            if (repeat.length > 0) {
+              const maxCount =
+                form.model.evaluate(`count(${tocItem.name})`, "number") || 1;
 
-            if (tocItem.score_total > 0) {
-              tocItem.score = value
-                ? form.model.evaluate(
-                    `sum(${instanceName}[${value
-                      .split(" ")
-                      .map((v: string) => `contains(name, "${v}")`)
-                      .join(" or ")}]/jr:score)`,
-                    "number"
-                  ) || 0
-                : 0;
+              tocItem.score = tocItem.score / maxCount;
+              tocItem.score_total = tocItem.score_total / maxCount;
             }
-          }
-          if (tocItem.element.classList.contains("disabled")) {
-            tocItem.score = 0;
+          } else {
+            let calculate_name = "";
+            if (tocItem.name.match(/\/\w+\[\d+\]/)) {
+              const name = tocItem.name.split("[")[0];
+              const number = tocItem.name.split("[")[1].split("]")[0];
+              calculate_name = name + "_score" + "[" + number + "]";
+            } else {
+              calculate_name = tocItem.name + "_score";
+            }
+            const calculate_value = form.model
+              .evaluate(calculate_name, "string")
+              .split(" ")
+              .map((v: string) => Number(v));
+            if (calculate_value.length === 2) {
+              tocItem.score = calculate_value[0];
+              tocItem.score_total = calculate_value[1];
+            } else {
+              const isMulti = !!tocItem.element.querySelector(
+                "input[type=checkbox]"
+              );
+              const value = form.model.evaluate(tocItem.name, "string");
+
+              const instanceName = tocItem.element
+                .querySelector("label.contains-ref-target")!
+                .getAttribute("data-items-path");
+
+              tocItem.score_total =
+                form.model.evaluate(
+                  `${isMulti ? "sum" : "max"}(${instanceName}/jr:score)`,
+                  "number"
+                ) || 0;
+
+              if (tocItem.score_total > 0) {
+                tocItem.score = value
+                  ? form.model.evaluate(
+                      `sum(${instanceName}[${value
+                        .split(" ")
+                        .map((v: string) => `contains(name, "${v}")`)
+                        .join(" or ")}]/jr:score)`,
+                      "number"
+                    ) || 0
+                  : 0;
+              }
+            }
+            if (tocItem.element.classList.contains("disabled")) {
+              tocItem.score = 0;
+            }
           }
         }
       }
+
+      calculateScores(tocArray);
+      // Filter out items that are not root items (i.e., items with no parent)
+      return tocArray
+        .filter((tocItem) => !tocItem.level)
+        .filter((v) => v.score_total);
     }
 
-    calculateScores(tocArray);
-    // Filter out items that are not root items (i.e., items with no parent)
-    return tocArray.filter((tocItem) => !tocItem.level);
-  }
+    const result = buildTree(getToc(form));
 
-  const result = buildTree(getToc(form));
+    const score = result.map((v) => v.score).reduce((p, c) => p + c, 0);
 
-  const score = result.map((v) => v.score).reduce((p, c) => p + c, 0);
-
-  const score_total = result
-    .map((v) => v.score_total)
-    .reduce((p, c) => p + c, 0);
-  return { result, score, score_total };
-};
+    const score_total = result
+      .map((v) => v.score_total)
+      .reduce((p, c) => p + c, 0);
+    resolve({ result, score, score_total });
+  });
 
 window.getScore = getScore;
 
-interface SUBMIT_SCORE {
-  name: string;
-  label: string;
-  score: number;
-  score_total: number;
-  children?: SUBMIT_SCORE[];
-}
-
-const getSubmitDict = (obj: {
-  result: TOC_ITEMS;
-  score: number;
-  score_total: number;
-}) => {
-  const { result, score, score_total } = obj;
+const getSubmitDict = (obj: FORM_SCORE) => {
+  const { result } = obj;
   const getDict = ({
     name,
     label,
@@ -263,18 +312,15 @@ const getSubmitDict = (obj: {
       name,
       label,
       score,
-      score_total,
-      ...(children ? { children: children.map(getDict) } : {}),
+      total_score: score_total,
+      ...(children
+        ? { children: children.filter((v) => v.score_total).map(getDict) }
+        : {}),
     };
   };
-  return {
-    score,
-    score_total,
-    parentage: (score * (100 / score_total)).toFixed(1) + "%",
-    result: result.map<SUBMIT_SCORE>(getDict),
-  };
+  return result.map<SUBMIT_SCORE>(getDict);
 };
-// @ts-ignore
+
 window.getSubmitDict = getSubmitDict;
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
@@ -432,7 +478,13 @@ export async function init(
     <button id="delete-localstorage" class="bg-red-500 hover:bg-red-200 px-3 py-2 rounded ml-3 transition-colors duration-200 ease-in-out">
       Delete Local Storage
     </button>
+    <label for="page">Show Pages
+      <input type="checkbox" id="page" class="ignore" value="show" />
+    </label>
     <textarea class="border mb-3 py-2 px-3 !h-24" cols="100" placeholder="Paste XML Instance Data here" id="load-mock"></textarea>
+    <label for="score">Real-time Score Calculation
+      <input type="checkbox" id="score" class="ignore" value="show" />
+    </label>
   </div>`;
   root.appendChild(div_);
 
@@ -466,14 +518,11 @@ export async function init(
         xml: result,
       });
     } catch (err) {
-      console.log(err);
+      console.error(err);
     }
   }
 
   const formEl = document.querySelector("form.or")!;
-  if (location.hash === "#page") {
-    formEl.classList.toggle("pages");
-  }
 
   formEl.classList.add("max-h-[80vh]", "overflow-y-auto", "p-10");
 
@@ -541,6 +590,7 @@ export async function init(
   );
 
   const loadErrors = form.init();
+  document.title = form.surveyName;
 
   window.odk_form = form;
 
@@ -553,16 +603,16 @@ export async function init(
       if (event.ctrlKey) {
         add_now(form_logo);
       } else {
-        // call the log all question
-        const { result, score, score_total } = getScore(form);
-        console.log(result);
-        logTOC(result);
-        console.log(
-          JSON.stringify({ score, score_total }) +
-            " %c" +
-            "★".repeat((score * (100 / score_total)) / 10),
-          "color: red"
-        );
+        const performTimeConsumingOperation = () =>
+          getScore(form).then(({ result, score, score_total }) => {
+            logTOC(result, score, score_total);
+          });
+
+        if ("requestIdleCallback" in window) {
+          requestIdleCallback(performTimeConsumingOperation);
+        } else {
+          setTimeout(performTimeConsumingOperation, 0); // Fallback
+        }
       }
     });
   }
@@ -624,7 +674,6 @@ export async function init(
   });
 
   const deleteLocalStorage = document.querySelector("#delete-localstorage")!;
-
   deleteLocalStorage.addEventListener("click", () => {
     localStorage.removeItem("form-odk");
     window.location.reload();
@@ -636,15 +685,24 @@ export async function init(
     window.location.reload();
   });
 
+  const pages = document.querySelector("#page")!;
+  pages.addEventListener("change", () => {
+    form.view.html.classList.toggle("pages");
+  });
+
+  const score = document.querySelector<HTMLInputElement>("#score")!;
+
   // on change
   document.addEventListener("xforms-value-changed", () => {
-    const { score_total, score } = getScore(form);
-
-    document.querySelector("section.form-logo")!.innerHTML =
-      JSON.stringify({
-        score: score.toFixed(1),
-        total: score_total.toFixed(0),
-        parentage: (score * (100 / score_total)).toFixed(1) + "%",
-      }) || "";
+    if (score.checked) {
+      getScore(form).then(({ score, score_total }) => {
+        document.querySelector("section.form-logo")!.innerHTML =
+          JSON.stringify({
+            score: score.toFixed(1),
+            total: score_total.toFixed(0),
+            parentage: (score * (100 / score_total)).toFixed(1) + "%",
+          }) || "";
+      });
+    }
   });
 }

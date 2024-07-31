@@ -195,6 +195,20 @@ export function xmlDebug() {
       pre.innerHTML = escapedXmlContent;
     }
   });
+  genModelDebug("Form Score", (pre, event) => {
+    const details = event.target as HTMLDetailsElement;
+    if (details.open) {
+      pre.innerHTML = "Loading...";
+      window
+        .getScore()
+        .then((res) => {
+          pre.innerHTML = JSON.stringify(window.getSubmitDict(res), null, 2);
+        })
+        .catch((err) => {
+          pre.innerHTML = JSON.stringify(err);
+        });
+    }
+  });
 }
 
 const XML_LOCAL_NAME_PATTERN = (() => {
