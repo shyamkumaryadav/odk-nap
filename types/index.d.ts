@@ -1,10 +1,16 @@
 import { Form } from "enketo-core";
 import { TransformedSurvey } from "enketo-transformer/web";
 
-export interface FORM_SCORE {
-  result: TOC_ITEM[];
+interface SCORE_FIELD {
   score: number;
+  /**
+   * name typo just for log use so that this come after score field
+   */
   score_total: number;
+}
+
+export interface FORM_SCORE extends SCORE_FIELD {
+  result: TOC_ITEM[];
 }
 
 export interface SUBMIT_SCORE {
@@ -19,12 +25,12 @@ declare global {
   interface Window {
     xform?: TransformedSurvey<{ x_form: string }>;
     odk_form?: Form;
-    getScore: (form?: Form) => Promise<FORM_SCORE>;
-    getSubmitDict: (obj: FORM_SCORE) => SUBMIT_SCORE[];
+    getScore: (form?: Form) => FORM_SCORE;
+    getSubmitDict: (obj?: FORM_SCORE) => SUBMIT_SCORE[];
   }
 }
 
-export interface TOC_ITEM {
+export interface TOC_ITEM extends SCORE_FIELD {
   tocParentId: number | null;
   parent: HTMLElement | null;
   tocId: number;
@@ -32,8 +38,6 @@ export interface TOC_ITEM {
   element: Element;
   label: string;
   name: string;
-  score: number;
-  score_total: number;
   children?: TOC_ITEM[];
 }
 

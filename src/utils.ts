@@ -199,14 +199,7 @@ export function xmlDebug() {
     const details = event.target as HTMLDetailsElement;
     if (details.open) {
       pre.innerHTML = "Loading...";
-      window
-        .getScore()
-        .then((res) => {
-          pre.innerHTML = JSON.stringify(window.getSubmitDict(res), null, 2);
-        })
-        .catch((err) => {
-          pre.innerHTML = JSON.stringify(err);
-        });
+      pre.innerHTML = JSON.stringify(window.getSubmitDict(), null, 2);
     }
   });
 }
