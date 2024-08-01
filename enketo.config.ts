@@ -1,3 +1,10 @@
+import L from "leaflet";
+
+const india_bounds = new L.LatLngBounds(
+  new L.LatLng(8, 68.1097),
+  new L.LatLng(37.32, 97.395358)
+);
+const zoom = india_bounds.getNorthWest().lat < 10 ? 4 : 5;
 export default /** @type {const} */ {
   experimentalOptimizations: {
     /**
@@ -19,10 +26,14 @@ export default /** @type {const} */ {
 
   maps: [
     {
-      tiles: ["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tiles: [
+        "https://www.google.co.in/maps/vt?lyrs=r&gl=in&x={x}&y={y}&z={z}",
+      ],
+      attributionControl: false,
       name: "streets",
-      attribution:
-        "© <a href='http://openstreetmap.org'>OpenStreetMap</a> | <a href='www.openstreetmap.org/copyright'>Terms</a>",
+      center: india_bounds.getCenter(),
+      maxBounds: india_bounds,
+      zoom,
     },
   ],
   googleApiKey: "",
