@@ -176,7 +176,7 @@ const getToc = (form: typeof Form = window.odk_form) => {
   });
 
   return tocItems.filter(
-    ({ element }) => !element.classList.contains("non-select")
+    ({ name, element }) => !element.classList.contains("non-select") && name
   );
 };
 
@@ -276,6 +276,10 @@ const getScore = (form: typeof Form = window.odk_form): FORM_SCORE => {
             tocItem.score = 0;
           }
         }
+        // Remove items with a score of 0
+        if (tocItem.score_total === 0) {
+          tocItems.splice(tocItems.indexOf(tocItem), 1);
+        }
       }
     }
 
@@ -312,9 +316,7 @@ const getSubmitDict = (obj: FORM_SCORE = getScore()) => {
       label,
       score,
       total_score: score_total,
-      ...(children
-        ? { children: children.filter((v) => v.score_total).map(getDict) }
-        : {}),
+      ...(children ? { children: children.map(getDict) } : {}),
     };
   };
   return result.map<SUBMIT_SCORE>(getDict);
