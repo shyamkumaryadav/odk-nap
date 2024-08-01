@@ -176,7 +176,7 @@ const getToc = (form: typeof Form = window.odk_form) => {
   });
 
   return tocItems.filter(
-    ({ name, element }) => !element.classList.contains("non-select") && name
+    ({ element }) => !element.classList.contains("non-select")
   );
 };
 
@@ -204,81 +204,83 @@ const getScore = (form: typeof Form = window.odk_form): FORM_SCORE => {
     // Third pass: Calculate scores
     function calculateScores(tocItems: TOC_ITEMS) {
       for (const tocItem of tocItems) {
-        if (tocItem.children && tocItem.children.length > 0) {
-          // Recursively calculate scores for children
-          calculateScores(tocItem.children);
-          // Calculate total score as sum of children's scores
-          tocItem.score_total = tocItem.children.reduce(
-            (total, child) => total + (child.score_total || 0),
-            0
-          );
-          tocItem.score = tocItem.children.reduce(
-            (total, child) => total + (child.score || 0),
-            0
-          );
-
-          const repeat = [...tocItem.element.children].filter((node) => {
-            return node.classList?.contains("or-repeat");
-          });
-
-          if (repeat.length > 0) {
-            const maxCount =
-              form.model.evaluate(`count(${tocItem.name})`, "number") || 1;
-
-            tocItem.score = tocItem.score / maxCount;
-            tocItem.score_total = tocItem.score_total / maxCount;
-          }
-        } else {
-          let calculate_name = "";
-          if (tocItem.name.match(/\/\w+\[\d+\]/)) {
-            const name = tocItem.name.split("[")[0];
-            const number = tocItem.name.split("[")[1].split("]")[0];
-            calculate_name = name + "_score" + "[" + number + "]";
-          } else {
-            calculate_name = tocItem.name + "_score";
-          }
-          const calculate_value = form.model
-            .evaluate(calculate_name, "string")
-            .split(" ")
-            .map((v: string) => Number(v));
-          if (calculate_value.length === 2) {
-            tocItem.score = calculate_value[0];
-            tocItem.score_total = calculate_value[1];
-          } else {
-            const isMulti = !!tocItem.element.querySelector(
-              "input[type=checkbox]"
+        if (tocItem.name) {
+          if (tocItem.children && tocItem.children.length > 0) {
+            // Recursively calculate scores for children
+            calculateScores(tocItem.children);
+            // Calculate total score as sum of children's scores
+            tocItem.score_total = tocItem.children.reduce(
+              (total, child) => total + (child.score_total || 0),
+              0
             );
-            const value = form.model.evaluate(tocItem.name, "string");
+            tocItem.score = tocItem.children.reduce(
+              (total, child) => total + (child.score || 0),
+              0
+            );
 
-            const instanceName = tocItem.element
-              .querySelector("label.contains-ref-target")!
-              .getAttribute("data-items-path");
+            const repeat = [...tocItem.element.children].filter((node) => {
+              return node.classList?.contains("or-repeat");
+            });
 
-            tocItem.score_total =
-              form.model.evaluate(
-                `${isMulti ? "sum" : "max"}(${instanceName}/jr:score)`,
-                "number"
-              ) || 0;
+            if (repeat.length > 0) {
+              const maxCount =
+                form.model.evaluate(`count(${tocItem.name})`, "number") || 1;
 
-            if (tocItem.score_total > 0) {
-              tocItem.score = value
-                ? form.model.evaluate(
-                    `sum(${instanceName}[${value
-                      .split(" ")
-                      .map((v: string) => `contains(name, "${v}")`)
-                      .join(" or ")}]/jr:score)`,
-                    "number"
-                  ) || 0
-                : 0;
+              tocItem.score = tocItem.score / maxCount;
+              tocItem.score_total = tocItem.score_total / maxCount;
+            }
+          } else {
+            let calculate_name = "";
+            if (tocItem.name.match(/\/\w+\[\d+\]/)) {
+              const name = tocItem.name.split("[")[0];
+              const number = tocItem.name.split("[")[1].split("]")[0];
+              calculate_name = name + "_score" + "[" + number + "]";
+            } else {
+              calculate_name = tocItem.name + "_score";
+            }
+            const calculate_value = form.model
+              .evaluate(calculate_name, "string")
+              .split(" ")
+              .map((v: string) => Number(v));
+            if (calculate_value.length === 2) {
+              tocItem.score = calculate_value[0];
+              tocItem.score_total = calculate_value[1];
+            } else {
+              const isMulti = !!tocItem.element.querySelector(
+                "input[type=checkbox]"
+              );
+              const value = form.model.evaluate(tocItem.name, "string");
+
+              const instanceName = tocItem.element
+                .querySelector("label.contains-ref-target")!
+                .getAttribute("data-items-path");
+
+              tocItem.score_total =
+                form.model.evaluate(
+                  `${isMulti ? "sum" : "max"}(${instanceName}/jr:score)`,
+                  "number"
+                ) || 0;
+
+              if (tocItem.score_total > 0) {
+                tocItem.score = value
+                  ? form.model.evaluate(
+                      `sum(${instanceName}[${value
+                        .split(" ")
+                        .map((v: string) => `contains(name, "${v}")`)
+                        .join(" or ")}]/jr:score)`,
+                      "number"
+                    ) || 0
+                  : 0;
+              }
+            }
+            if (tocItem.element.classList.contains("disabled")) {
+              tocItem.score = 0;
             }
           }
-          if (tocItem.element.classList.contains("disabled")) {
-            tocItem.score = 0;
+          // Remove items with a score of 0
+          if (tocItem.score_total === 0) {
+            tocItems.splice(tocItems.indexOf(tocItem), 1);
           }
-        }
-        // Remove items with a score of 0
-        if (tocItem.score_total === 0) {
-          tocItems.splice(tocItems.indexOf(tocItem), 1);
         }
       }
     }
