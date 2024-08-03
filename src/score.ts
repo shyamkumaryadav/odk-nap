@@ -1,11 +1,44 @@
-import { FORM_SCORE, SUBMIT_SCORE, TOC_ITEM, TOC_ITEMS } from "../types";
 import { getAncestors, getSiblingElement } from "enketo-core/src/js/dom-utils";
 // @ts-ignore
 import { Form } from "enketo-core";
 
+interface SUBMIT_SCORE {
+  name: string;
+  label: string;
+  score: number;
+  total_score: number;
+  children?: SUBMIT_SCORE[];
+}
+
+interface SCORE_FIELD {
+  score: number;
+  /**
+   * name typo just for log use so that this come after score field
+   */
+  score_total: number;
+}
+
+interface TOC_ITEM extends SCORE_FIELD {
+  tocParentId: number | null;
+  parent: HTMLElement | null;
+  tocId: number;
+  level: number;
+  element: Element;
+  label: string;
+  name: string;
+  /**
+   * index of the element in the repeat group
+   */
+  ind: number;
+  children?: TOC_ITEM[];
+}
+
+type TOC_ITEMS = TOC_ITEM[];
+
 export default {
   tocItems: [],
   form: null,
+  nodeName: "data",
   getName(el) {
     const name =
       el.getAttribute("name") ||
@@ -148,6 +181,7 @@ export default {
     return _tocItems.filter((tocItem) => !tocItem.level);
   },
   getToc() {
+    this.nodeName = this.form.model.node().getElement().nodeName;
     const tocItems: TOC_ITEMS = [];
 
     const tocElements = [
@@ -225,7 +259,7 @@ export default {
     );
   },
   logTOC() {
-    const _X = window.odk_form;
+    const _X = this.form;
     // Create a new window
     const newWindow = window.open(
       "",
@@ -301,6 +335,7 @@ export default {
               parent: undefined,
               tocId: undefined,
               tocParentId: undefined,
+              nodeName: _X.score.nodeName,
             },
             null,
             2
@@ -337,6 +372,7 @@ export default {
   },
   getSubmitDict() {
     const result = this.getScore();
+    const nodeName = this.nodeName;
     const getDict = ({
       name,
       label,
@@ -345,7 +381,7 @@ export default {
       children,
     }: TOC_ITEM): SUBMIT_SCORE => {
       return {
-        name,
+        name: name.replace(["/", "/"].join(nodeName), ""),
         label,
         score,
         total_score: score_total,
@@ -355,12 +391,41 @@ export default {
     return result.map<SUBMIT_SCORE>(getDict);
   },
 } as {
+  /**
+   * The form object.
+   */
   form: typeof Form;
+  /**
+   * An array of table of contents (TOC) items.
+   */
   tocItems: TOC_ITEMS;
+  /**
+   * The name of the XML node.
+   */
+  nodeName: string;
+  /**
+   * Calculates the scores for the TOC items.
+   */
   getScore: () => TOC_ITEMS;
+  /**
+   * Generates the table of contents (TOC) based on the form structure.
+   */
   getToc: () => void;
+  /**
+   * Gets the title of an element.
+   * @param el - The element.
+   * @returns The title text.
+   */
   getTitle: (el: TOC_ITEM["element"]) => string;
+  /**
+   * Gets the name attribute of an element.
+   * @param el - The element.
+   * @returns The name attribute value.
+   */
   getName: (el: TOC_ITEM["element"]) => string;
+  /**
+   * Logs the table of contents (TOC) in a new window.
+   */
   logTOC: () => void;
-  getSubmitDict: (obj: FORM_SCORE) => SUBMIT_SCORE[];
+  getSubmitDict: () => SUBMIT_SCORE[];
 };
