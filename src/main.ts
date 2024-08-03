@@ -1,7 +1,6 @@
 import event from "enketo-core/src/js/event";
 // @ts-ignore
 import { Form, FormModel } from "enketo-core";
-import { getAncestors, getSiblingElement } from "enketo-core/src/js/dom-utils";
 import { transform } from "enketo-transformer/web";
 import "./styles/main.scss";
 
@@ -12,338 +11,87 @@ import {
   add_now,
   csvToXml,
 } from "./utils";
-import { FORM_SCORE, SUBMIT_SCORE, TOC_ITEM, TOC_ITEMS } from "../types";
-
-const getName = (el: TOC_ITEM["element"]) => {
-  const isRepeat = el.parentElement?.classList.contains("or-repeat");
-  const name =
-    el.getAttribute("name") ||
-    el
-      .querySelector("label.contains-ref-target")
-      ?.getAttribute("data-contains-ref-target") ||
-    "";
-  return (
-    name +
-    (isRepeat
-      ? `[${el.parentElement?.querySelector(".repeat-number")!.textContent}]`
-      : "")
-  );
-};
-
-const getTitle = (el: TOC_ITEM["element"]) => {
-  let tocItemText = "";
-  const labelEl = el.querySelector(".question-label.active");
-  if (labelEl && labelEl.textContent) {
-    tocItemText = labelEl.textContent;
-  } else {
-    const hintEl = el.querySelector(".or-hint.active");
-    if (hintEl && hintEl.textContent) {
-      tocItemText = hintEl.textContent;
-    }
-  }
-  // tocItemText =
-  //   tocItemText.length > 25 ? tocItemText.slice(0, 25) + "..." : tocItemText;
-  return tocItemText;
-};
-
-function logTOC(tocItems: TOC_ITEMS, score: number, total: number) {
-  // Create a new window
-  const newWindow = window.open("", "_blank");
-  const _X = window.odk_form;
-
-  // Check if the new window is opened
-  if (newWindow) {
-    // Generate HTML content for the new window
-    let htmlContent = `<!DOCTYPE html><html><head><title>${_X.surveyName}</title></head><body>
-                      <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%; text-align: center;">
-                      <caption>${_X.surveyName} (${_X.version})</caption>
-                      <thead><tr><th>Name</th><th>Score</th><th>Total Score</th></tr></thead><tbody>`;
-
-    function extractSuffixAndText(text: string) {
-      const regex = /^([A-Z](?:\.\d+)*)(\.?)\s*(.*)$/;
-      const match = text.match(regex);
-
-      if (match) {
-        let suffix = match[1];
-        if (match[2]) {
-          suffix = suffix.replace(/\.$/, ""); // Remove trailing dot from suffix if it exists
-        }
-        // Ensure that the suffix and text are correct
-        return [["<b>", "</b>"].join(suffix), match[3].trim() || null];
-      } else {
-        // If no valid suffix pattern is matched, return entire text as the second part
-        return [null, text.trim() || null];
-      }
-    }
-
-    tocItems.forEach((item) => {
-      const [suffix, text] = extractSuffixAndText(item.label);
-      htmlContent += `<tr><td title="${text}">${suffix}</td><td>${item.score}</td><td>${item.score_total}</td></tr>`;
-    });
-
-    htmlContent += `</tbody><tfoot><tr><td>${(
-      (score * 100) / total || 0
-    ).toFixed(
-      1
-    )} %</td><td>${score}</td><td>${total}</td></tr></tfoot></table>`;
-
-    htmlContent += `<pre style="line-height: 1rem;background-image: linear-gradient(180deg, #eee 50%, #fff 50%); background-size: 100% 2rem; overflow: auto;">`;
-
-    // Recursive function to build HTML content
-    function buildHtml(tocItems: TOC_ITEMS, prefix = ""): void {
-      tocItems.forEach((item, index) => {
-        const isLast = index === tocItems.length - 1;
-        const currentPrefix = prefix + (isLast ? "└───" : "├───");
-        const isMulti =
-          !item.children &&
-          !!item.element.querySelector("input[type=checkbox]");
-
-        const styles = isMulti ? ["<mark>", "</mark>"] : ["", ""];
-        htmlContent += `${currentPrefix} [${item.score}/${
-          item.score_total
-        }] ${styles.join(extractSuffixAndText(item.label).join(" --> "))}\n`;
-
-        if (item.children) {
-          const childPrefix = prefix + (isLast ? "    " : "│   ");
-          buildHtml(item.children, childPrefix);
-        }
-      });
-    }
-
-    // Build the HTML content
-    buildHtml(tocItems);
-
-    // Close the <pre> tag and add the closing HTML tags
-    htmlContent += "</pre></body></html>";
-
-    // Write the HTML content to the new window
-    newWindow.document.write(htmlContent);
-    newWindow.document.close();
-  } else {
-    console.error("Failed to open a new window.");
-  }
-}
-
-const getToc = (form: typeof Form = window.odk_form) => {
-  const tocItems: TOC_ITEMS = [];
-
-  const tocElements = [
-    ...(form.view.$[0] as HTMLFormElement).querySelectorAll(
-      '.question:not([role="comment"]), .or-group'
-    ),
-  ]
-    .filter(
-      (tocEl) =>
-        // !tocEl.closest('.disabled') &&
-        tocEl.matches(".question") ||
-        // tocEl.querySelector(".question:not(.disabled)") ||
-        tocEl.querySelector(".question:not(.non-select)") ||
-        // or-repeat-info is only considered a page by itself if it has no sibling repeats When there are siblings repeats, we use CSS trickery to show the + button underneath the last repeat.
-        (tocEl.matches(".or-repeat-info") &&
-          !getSiblingElement(tocEl, ".or-repeat"))
-    )
-    .filter((tocEl) => !tocEl.classList.contains("or-repeat-info"));
-
-  tocElements.forEach((element, index) => {
-    const groupParents = getAncestors(element, ".or-group");
-    tocItems.push({
-      element,
-      level: groupParents.length,
-      parent:
-        groupParents.length > 0 ? groupParents[groupParents.length - 1] : null,
-      tocId: index,
-      tocParentId: null,
-      name: getName(element),
-      label: getTitle(element),
-      score: 0,
-      score_total: 0,
-    });
-  });
-
-  const _maxTocLevel = Math.max(...tocItems.map((el) => el.level));
-  const newTocParents = tocItems.filter(
-    (item) =>
-      item.level < _maxTocLevel && item.element.classList.contains("or-group")
-  );
-
-  tocItems.forEach((item) => {
-    const parentItem = newTocParents.find(
-      (parent) => item.parent === parent.element
-    );
-    if (parentItem) {
-      item.tocParentId = parentItem.tocId;
-    }
-  });
-
-  return tocItems.filter(
-    ({ element }) => !element.classList.contains("non-select")
-  );
-};
-
-const getScore = (form: typeof Form = window.odk_form): FORM_SCORE => {
-  function buildTree(tocArray: TOC_ITEMS) {
-    const map = new Map<TOC_ITEM["tocParentId"], TOC_ITEMS>(); // Using a Map to efficiently group TOC items by their parent ID
-
-    // First pass: Group TOC items by their parent ID
-    for (const tocItem of tocArray) {
-      const parentId = tocItem.tocParentId;
-      if (!map.has(parentId)) {
-        map.set(parentId, []);
-      }
-      map.get(parentId)!.push(tocItem);
-    }
-
-    // Second pass: Append child TOC items to their respective parent's 'child' array
-    for (const tocItem of tocArray) {
-      const parentId = tocItem.tocId;
-      if (map.has(parentId)) {
-        tocItem.children = map.get(parentId)!;
-      }
-    }
-
-    // Third pass: Calculate scores
-    function calculateScores(tocItems: TOC_ITEMS) {
-      for (const tocItem of tocItems) {
-        if (tocItem.name) {
-          if (tocItem.children && tocItem.children.length > 0) {
-            // Recursively calculate scores for children
-            calculateScores(tocItem.children);
-            // Calculate total score as sum of children's scores
-            tocItem.score_total = tocItem.children.reduce(
-              (total, child) => total + (child.score_total || 0),
-              0
-            );
-            tocItem.score = tocItem.children.reduce(
-              (total, child) => total + (child.score || 0),
-              0
-            );
-
-            const repeat = [...tocItem.element.children].filter((node) => {
-              return node.classList?.contains("or-repeat");
-            });
-
-            if (repeat.length > 0) {
-              const maxCount =
-                form.model.evaluate(`count(${tocItem.name})`, "number") || 1;
-
-              tocItem.score = tocItem.score / maxCount;
-              tocItem.score_total = tocItem.score_total / maxCount;
-            }
-          } else {
-            let calculate_name = "";
-            if (tocItem.name.match(/\/\w+\[\d+\]/)) {
-              const name = tocItem.name.split("[")[0];
-              const number = tocItem.name.split("[")[1].split("]")[0];
-              calculate_name = name + "_score" + "[" + number + "]";
-            } else {
-              calculate_name = tocItem.name + "_score";
-            }
-            const calculate_value = form.model
-              .evaluate(calculate_name, "string")
-              .split(" ")
-              .map((v: string) => Number(v));
-            if (calculate_value.length === 2) {
-              tocItem.score = calculate_value[0];
-              tocItem.score_total = calculate_value[1];
-            } else {
-              const isMulti = !!tocItem.element.querySelector(
-                "input[type=checkbox]"
-              );
-              const value = form.model.evaluate(tocItem.name, "string");
-
-              const instanceName = tocItem.element
-                .querySelector("label.contains-ref-target")!
-                .getAttribute("data-items-path");
-
-              tocItem.score_total =
-                form.model.evaluate(
-                  `${isMulti ? "sum" : "max"}(${instanceName}/jr:score)`,
-                  "number"
-                ) || 0;
-
-              if (tocItem.score_total > 0) {
-                tocItem.score = value
-                  ? form.model.evaluate(
-                      `sum(${instanceName}[${value
-                        .split(" ")
-                        .map((v: string) => `contains(name, "${v}")`)
-                        .join(" or ")}]/jr:score)`,
-                      "number"
-                    ) || 0
-                  : 0;
-              }
-            }
-            if (tocItem.element.classList.contains("disabled")) {
-              tocItem.score = 0;
-            }
-          }
-          // Remove items with a score of 0
-          if (tocItem.score_total === 0) {
-            tocItems.splice(tocItems.indexOf(tocItem), 1);
-          }
-        }
-      }
-    }
-
-    calculateScores(tocArray);
-    // Filter out items that are not root items (i.e., items with no parent)
-    return tocArray
-      .filter((tocItem) => !tocItem.level)
-      .filter((v) => v.score_total);
-  }
-
-  const result = buildTree(getToc(form));
-
-  const score = result.map((v) => v.score).reduce((p, c) => p + c, 0);
-
-  const score_total = result
-    .map((v) => v.score_total)
-    .reduce((p, c) => p + c, 0);
-  return { result, score, score_total };
-};
-
-window.getScore = getScore;
-
-const getSubmitDict = (obj: FORM_SCORE = getScore()) => {
-  const { result } = obj;
-  const getDict = ({
-    name,
-    label,
-    score,
-    score_total,
-    children,
-  }: TOC_ITEM): SUBMIT_SCORE => {
-    return {
-      name,
-      label,
-      score,
-      total_score: score_total,
-      ...(children ? { children: children.map(getDict) } : {}),
-    };
-  };
-  return result.map<SUBMIT_SCORE>(getDict);
-};
-
-window.getSubmitDict = getSubmitDict;
+import scoreModule from "./score";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
 
 setupDropdown(document.querySelector<HTMLDivElement>("#dropdown")!);
 setupLocalStorage(document.querySelector<HTMLDivElement>("#localstorage")!);
-xmlDebug();
 
 export async function init(
   form_ = new URLSearchParams(window.location.search).get("form") ||
     localStorage.getItem("xform-odk")
 ) {
   if (!form_) {
-    root.innerHTML = "set in url `?form=...` or Upload a valid XML File ";
+    root.innerHTML =
+      "set in url `?form=...` or Upload a valid XLS File On <a id='getodk' href='#' class='text-blue-500'>https://staging.xlsform.getodk.org/ <span class='font-bold text-green-600'> And Click on Download XForm to Download the XML File</span></a> <br/>";
+
+    const getodk = document.querySelector("#getodk")!;
+    const info_ = getodk.querySelector("span")!;
+    getodk.addEventListener("click", () => {
+      const popup = window.open(
+        "https://staging.xlsform.getodk.org/",
+        "getodk",
+        "width=600,height=600"
+      );
+
+      function checkPopup() {
+        if (popup && !popup.closed) {
+          setTimeout(checkPopup, 1000); // Check again after 1 second
+        } else {
+          info_.innerHTML =
+            " Popup is closed? You have Click on Download XForm? if not try again";
+        }
+      }
+
+      setTimeout(checkPopup, 1000); // Initial check after 1 second
+    });
     // add a form input to upload a file of xml type get a blob url of file set in form_
     const input = document.createElement("textarea");
     input.cols = 100;
     input.rows = 10;
     input.classList.add("border", "mb-3", "py-2", "px-3");
-    input.placeholder = "Paste XML here";
+    input.placeholder = "Paste XML here or drag and drop a XML file";
+
+    const message = document.createElement("div");
+    message.id = "message";
+    message.classList.add("message");
+    message.innerHTML = "<p>Drop the file here</p>";
+    root.appendChild(message);
+
+    document.addEventListener("dragover", (event) => {
+      event.preventDefault(); // Prevent default behavior (e.g., opening files)
+      document.body.classList.add("dragover");
+      message.classList.add("show");
+    });
+
+    document.addEventListener("dragleave", () => {
+      document.body.classList.remove("dragover");
+      message.classList.remove("show");
+    });
+
+    document.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      document.body.classList.remove("dragover");
+      message.classList.remove("show");
+      const dt = e.dataTransfer;
+      if (!dt) {
+        return;
+      }
+      const files = dt.files;
+
+      if (files.length > 0) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const text = e.target?.result;
+          if (typeof text === "string") {
+            init(text);
+          }
+        };
+        reader.readAsText(files[0]);
+      }
+    });
 
     input.addEventListener("change", (e) => {
       const value = (e.target as HTMLTextAreaElement).value;
@@ -377,6 +125,8 @@ export async function init(
   if (typeof xform === "string") {
     localStorage.setItem("xform-odk", xform);
   }
+  xmlDebug();
+
   const result = await transform({
     xform: xform,
     theme: "mnm",
@@ -421,7 +171,14 @@ export async function init(
     </nav>
 </header>` +
     result.form +
-    ` <div class="form-footer">
+    ` <div class="form-footer select-none">
+    <label class="inline-flex p-4 gap-3" for="page">Toggle Pages
+      <input type="checkbox" id="page" class="ml-2" value="show" />
+    </label>
+    <label class="inline-flex p-4 gap-3" for="score">Real-Time Calculation (Slow)
+      <input type="checkbox" id="score" class="ignore" value="show" />
+    </label>
+    <br/>
      <button
       type="button"
       id="reload-localstorage"
@@ -481,13 +238,7 @@ export async function init(
     <button id="delete-localstorage" class="bg-red-500 hover:bg-red-200 px-3 py-2 rounded ml-3 transition-colors duration-200 ease-in-out">
       Delete Local Storage
     </button>
-    <label for="page">Show Pages
-      <input type="checkbox" id="page" class="ignore" value="show" />
-    </label>
-    <textarea class="border mb-3 py-2 px-3 !h-24" cols="100" placeholder="Paste XML Instance Data here" id="load-mock"></textarea>
-    <label for="score">Real-time Score Calculation
-      <input type="checkbox" id="score" class="ignore" value="show" />
-    </label>
+    <textarea class="border !m-4 py-2 px-3 !h-24" cols="100" placeholder="Paste XML Instance Data here" id="load-mock"></textarea>
   </div>`;
   root.appendChild(div_);
 
@@ -527,7 +278,15 @@ export async function init(
 
   const formEl = document.querySelector("form.or")!;
 
-  formEl.classList.add("max-h-[80vh]", "overflow-y-auto", "p-10");
+  formEl.classList.add(
+    "max-h-[80vh]",
+    "overflow-y-auto",
+    "px-10",
+    "rounded-lg",
+    "border-solid",
+    "border-2",
+    "border-sky-500"
+  );
 
   window.xform = result;
 
@@ -593,6 +352,8 @@ export async function init(
   );
 
   const loadErrors = form.init();
+  // add score module
+  form.score = form.addModule(scoreModule);
   document.title = form.surveyName;
 
   window.odk_form = form;
@@ -607,8 +368,7 @@ export async function init(
         add_now(form_logo);
       } else {
         const performTimeConsumingOperation = () => {
-          const { result, score, score_total } = getScore(form);
-          logTOC(result, score, score_total);
+          window.odk_form.score.logTOC();
         };
 
         if ("requestIdleCallback" in window) {
@@ -688,22 +448,44 @@ export async function init(
     window.location.reload();
   });
 
-  const pages = document.querySelector("#page")!;
+  const pages = document.querySelector<HTMLInputElement>("#page")!;
+  pages.checked = localStorage.getItem("pages") === "true";
+  if (pages.checked) {
+    form.view.html.classList.toggle("pages");
+  }
   pages.addEventListener("change", () => {
+    localStorage.setItem("pages", pages.checked ? "true" : "false");
     form.view.html.classList.toggle("pages");
   });
 
   const score = document.querySelector<HTMLInputElement>("#score")!;
+  score.checked = localStorage.getItem("score") === "true";
+  score.addEventListener("change", () => {
+    localStorage.setItem("score", score.checked ? "true" : "false");
+  });
 
-  // on change
   document.addEventListener("xforms-value-changed", () => {
     if (score.checked) {
-      const { score, score_total } = getScore(form);
+      const { score, total } = window.odk_form.score.getScore().reduce(
+        (
+          acc: { score: number; total: number },
+          item: {
+            score: number;
+            score_total: number;
+          }
+        ) => {
+          acc.score += item.score;
+          acc.total += item.score_total;
+          return acc;
+        },
+        { score: 0, total: 0 }
+      );
+
       document.querySelector("section.form-logo")!.innerHTML =
         JSON.stringify({
           score: score.toFixed(1),
-          total: score_total.toFixed(0),
-          parentage: (score * (100 / score_total)).toFixed(1) + "%",
+          total: total.toFixed(0),
+          parentage: (score * (100 / total)).toFixed(1) + "%",
         }) || "";
     }
   });

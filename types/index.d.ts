@@ -9,7 +9,7 @@ interface SCORE_FIELD {
   score_total: number;
 }
 
-export interface FORM_SCORE extends SCORE_FIELD {
+export interface FORM_SCORE {
   result: TOC_ITEM[];
 }
 
@@ -25,8 +25,6 @@ declare global {
   interface Window {
     xform?: TransformedSurvey<{ x_form: string }>;
     odk_form?: Form;
-    getScore: (form?: Form) => FORM_SCORE;
-    getSubmitDict: (obj?: FORM_SCORE) => SUBMIT_SCORE[];
   }
 }
 
@@ -38,6 +36,10 @@ export interface TOC_ITEM extends SCORE_FIELD {
   element: Element;
   label: string;
   name: string;
+  /**
+   * index of the element in the repeat group 0 if not in repeat group
+   */
+  ind: number;
   children?: TOC_ITEM[];
 }
 

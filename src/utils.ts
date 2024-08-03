@@ -25,6 +25,8 @@ export function setupLocalStorage(element: HTMLDivElement) {
   element.innerHTML = "";
   const reloadSpan = document.createElement("button");
   reloadSpan.id = "reload-localstorage";
+  reloadSpan.title =
+    "Reload Local Storage or Ctrl+Click to delete selected item or Alt+Click to delete current";
   reloadSpan.classList.add(...btnClass, "bg-green-500", "hover:bg-green-600");
   reloadSpan.innerHTML = "&#x21bb;";
   element.appendChild(reloadSpan);
@@ -47,7 +49,7 @@ export function setupLocalStorage(element: HTMLDivElement) {
     select.innerHTML =
       '<option value="">Select a local storage data to load</option>' +
       keys
-        .filter((key) => key !== "form-odk")
+        .filter((key) => !["form-odk", "pages", "score"].includes(key))
         .map((key) => `<option value="${key}">${key}</option>`)
         .join("");
 
@@ -156,6 +158,10 @@ const genModelDebug = (
   const summary = document.createElement("summary");
   summary.innerHTML = title;
   summary.classList.add("font-bold", "select-none");
+  const btn = document.createElement("button");
+  btn.innerHTML = "📑";
+  btn.classList.add("hidden", "mx-4", "hover:bg-green-600", "rounded");
+  summary.appendChild(btn);
   details.appendChild(summary);
   const pre = document.createElement("pre");
   pre.classList.add(
@@ -165,13 +171,19 @@ const genModelDebug = (
     "overflow-x"
   );
   details.appendChild(pre);
+  btn.addEventListener("click", () => {
+    navigator.clipboard.writeText(pre.innerText.trim());
+  });
   debug_.appendChild(details);
   details.addEventListener("toggle", (event) => {
+    if (details.open) btn.classList.remove("hidden");
+    else btn.classList.add("hidden");
     onToggle(pre, event);
   });
 };
 
 export function xmlDebug() {
+  debug_.innerHTML = "";
   genModelDebug("XML Model", (pre, event) => {
     const details = event.target as HTMLDetailsElement;
     if (details.open && window.xform) {
@@ -198,8 +210,12 @@ export function xmlDebug() {
   genModelDebug("Form Score", (pre, event) => {
     const details = event.target as HTMLDetailsElement;
     if (details.open) {
-      pre.innerHTML = "Loading...";
-      pre.innerHTML = JSON.stringify(window.getSubmitDict(), null, 2);
+      if (window.odk_form.score)
+        pre.innerHTML = JSON.stringify(
+          window.odk_form.score.getSubmitDict(),
+          null,
+          2
+        );
     }
   });
 }

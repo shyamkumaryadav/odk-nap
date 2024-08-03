@@ -20,3 +20,27 @@
 ::-webkit-scrollbar-track {
   background: #f1f1f1;
 }
+
+body {
+  transition: background-color 0.3s ease;
+}
+body.dragover {
+  background-color: #f0f9ff; /* Light blue background when dragging over */
+}
+.message {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  text-align: center;
+  font-size: 18px;
+  z-index: 1000;
+}
+.message.show {
+  display: block;
+}
