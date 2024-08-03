@@ -417,14 +417,14 @@ export async function init(
       })
       .toArray();
 
-    return Promise.all(validations);
+    Promise.all(validations);
+    form.view.html.dispatchEvent(event.BeforeSave());
   });
 
   const draftButton = document.querySelector("#draft-page")!;
   draftButton.addEventListener("click", () => {
-    form.view.html.dispatchEvent(event.BeforeSave());
-    // document.getElementById("reload-localstorage")?.click();
-    localStorage.setItem("form-odk", form.model.getStr());
+    const recordName = prompt("Please enter a record name", "form-odk");
+    if (recordName) localStorage.setItem(recordName, form.model.getStr());
   });
 
   const loadMock = document.querySelector("#load-mock")!;

@@ -248,9 +248,9 @@ export default {
     // Check if the new window is opened
     if (newWindow) {
       // Generate HTML content for the new window
-      let htmlContent = `<!DOCTYPE html><html><head><title>${_X.surveyName}</title></head><style>pre span:hover { background-color: green; }</style><body>
+      let htmlContent = `<!DOCTYPE html><html><head><title>${_X.surveyName}</title></head><style>span:hover { background-color: #58e94759; }</style><body>
                       <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%; text-align: center;">
-                      <caption>${_X.surveyName} (${_X.version})</caption>
+                      <caption>${_X.surveyName} (${_X.version}) <button onclick="window.print()">Print</button></caption>
                       <thead><tr><th>ID</th><th>Name</th><th>Score</th><th>Total Score</th></tr></thead><tbody>`;
 
       function extractSuffixAndText(text: string) {
