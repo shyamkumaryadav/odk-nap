@@ -388,7 +388,15 @@ export default {
         ...(children ? { children: children.map(getDict) } : {}),
       };
     };
-    return result.map<SUBMIT_SCORE>(getDict);
+    return [
+      {
+        name: nodeName,
+        label: "A. Overall Score",
+        score: result.reduce((acc, item) => acc + item.score, 0),
+        total_score: result.reduce((acc, item) => acc + item.score_total, 0),
+      },
+      ...result.map<SUBMIT_SCORE>(getDict),
+    ];
   },
 } as {
   /**
