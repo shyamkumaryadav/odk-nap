@@ -127,6 +127,68 @@ export async function init(
   }
   xmlDebug();
 
+  const permissions = [
+    {
+      id: 1,
+      survey_phase: [
+        {
+          id: 1,
+          name: "Phase 1: Aug 2024",
+          is_active: false,
+          survey: 1,
+        },
+        {
+          id: 2,
+          name: "Phase 2: Sep 2024",
+          is_active: true,
+          survey: 1,
+        },
+      ],
+      sid: "AAA",
+      is_active: true,
+    },
+  ];
+
+  const surveyData = permissions
+    .filter((item) => item.is_active)
+    .map((item) => ({
+      label: item.sid,
+      name: item.id,
+    }));
+
+  const phaseData = permissions
+    .map((item) =>
+      item.survey_phase
+        .filter((phase) => phase.is_active)
+        .map((phase) => ({
+          label: phase.name,
+          name: phase.id,
+          survey: phase.survey,
+        }))
+    )
+    .flat();
+
+  const surveyContent =
+    `<root>` +
+    surveyData
+      .map(
+        (item) =>
+          `<item>${Object.entries(item)
+            .map(([key, value]) => `<${key}>${value}</${key}>`)
+            .join("")}</item>`
+      )
+      .join("") +
+    `</root>`;
+
+  const phaseContent = `<root>${phaseData
+    .map(
+      (item) =>
+        `<item>${Object.entries(item)
+          .map(([key, value]) => `<${key}>${value}</${key}>`)
+          .join("")}</item>`
+    )
+    .join("")}</root>`;
+
   const result = await transform({
     xform: xform,
     theme: "mnm",
@@ -145,6 +207,9 @@ export async function init(
       "designation.xml": "/odk-nap/designation.xml",
       "organization.xml": "/odk-nap/organization.xml",
       "level.xml": "/odk-nap/level.xml",
+      // survey data
+      "survey.xml": "survey",
+      "phase.xml": "phase",
     },
   });
 
@@ -252,27 +317,41 @@ export async function init(
   }[] = [];
   for (const node of nodes) {
     const src = node.getAttribute("src")!;
-    try {
-      const res = await fetch(src);
-      const contentType = res.headers.get("Content-Type")!;
-      const responseData = await res.text();
-      let result: Document;
-      switch (contentType) {
-        case "text/csv":
-          result = csvToXml(responseData);
-          break;
-        case "text/xml":
-          result = parser.parseFromString(responseData, contentType);
-          break;
-        default:
-          result = parser.parseFromString(responseData, "text/xml");
+    if (!["survey", "phase"].includes(src)) {
+      try {
+        const res = await fetch(src);
+        const contentType = res.headers.get("Content-Type")!;
+        const responseData = await res.text();
+        let result: Document;
+        switch (contentType) {
+          case "text/csv":
+            result = csvToXml(responseData);
+            break;
+          case "text/xml":
+            result = parser.parseFromString(responseData, contentType);
+            break;
+          default:
+            result = parser.parseFromString(responseData, "text/xml");
+        }
+        externalData.push({
+          id: node.getAttribute("id")!,
+          xml: result,
+        });
+      } catch (err) {
+        console.error(err);
       }
+    } else {
       externalData.push({
         id: node.getAttribute("id")!,
-        xml: result,
+        xml: parser.parseFromString(
+          src === "survey"
+            ? surveyContent
+            : src === "phase"
+            ? phaseContent
+            : "",
+          "text/xml"
+        ),
       });
-    } catch (err) {
-      console.error(err);
     }
   }
 
@@ -311,8 +390,8 @@ export async function init(
 
         if (Object.prototype.hasOwnProperty.call(defaults, path)) {
           // if this fails, the FormModel will output a console error and ignore the instruction
-          if (model.node("//" + path).getElement()) {
-            model.node("//" + path).setVal(defaults[path]);
+          if (model.node("/model/instance[1]//" + path).getElement()) {
+            model.node("/model/instance[1]//" + path).setVal(defaults[path]);
           }
         }
         // TODO: would be good to not include nodes that weren't in the defaults parameter
@@ -329,7 +408,11 @@ export async function init(
     full_name: "Admin",
     email: "ABC@123.com",
     phone: "9999912345",
+    name: "HF Name",
     designation: 3,
+    // auto fill the survey and phase data
+    survey: phaseData[0].survey,
+    phase: phaseData[0].name,
   };
 
   const form = new Form(
@@ -382,6 +465,7 @@ export async function init(
 
   if (loadErrors.length > 0) {
     console.error(loadErrors);
+    alert("Form Errors:\n" + loadErrors.join("\n"));
   }
 
   const submitButton = document.querySelector("#submit-page")!;
@@ -423,6 +507,10 @@ export async function init(
 
   const draftButton = document.querySelector("#draft-page")!;
   draftButton.addEventListener("click", () => {
+    const phase = form.model.evaluate("//phase", "number");
+    console.log({
+      phase,
+    });
     const recordName = prompt("Please enter a record name", "form-odk");
     if (recordName) localStorage.setItem(recordName, form.model.getStr());
   });

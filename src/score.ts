@@ -108,7 +108,11 @@ export default {
             }
             // first check if the calculation for this field present if yes calculate the score
             // find the field in xml model if not found then it is going to default calculation
-            if (that.form.model.node(calculate_name).getElement()) {
+            if (
+              that.form.model
+                .node("/model/instance[1]//" + calculate_name)
+                .getElement()
+            ) {
               const calculate_value = that.form.model
                 .evaluate(calculate_name, "string")
                 .split(" ")
