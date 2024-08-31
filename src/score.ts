@@ -110,7 +110,7 @@ export default {
             // find the field in xml model if not found then it is going to default calculation
             if (
               that.form.model
-                .node("/model/instance[1]//" + calculate_name)
+                .node("/model/instance[1]/" + calculate_name)
                 .getElement()
             ) {
               const calculate_value = that.form.model
