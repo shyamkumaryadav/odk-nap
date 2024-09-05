@@ -94,6 +94,7 @@ def get_data(survey):
         data_type = item.get("type")
         appearance = item.get(CONTROL, {}).get(APPEARANCE)
         res = item.get("default", "")
+        instance = item.get("instance", {})
 
         if name is None or data_type == "repeat":
             continue
@@ -169,7 +170,13 @@ def get_data(survey):
         elif data_type == "group":
             res = get_data(item[CHILDREN])
 
-        result[name] = item.get("default", res)
+        res = item.get("default", res)
+        if instance:
+            res = {
+                "#text": res,
+                **{f"@{k}": v for k, v in instance.items()},
+            }
+        result[name] = res
     return result
 
 
