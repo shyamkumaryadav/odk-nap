@@ -1,5 +1,5 @@
 import Widget from "enketo-core/src/js/widget";
-import Datepicker from "vanillajs-datepicker/Datepicker";
+import Datepicker, { DatepickerOptions } from "vanillajs-datepicker/Datepicker";
 
 const DateCalenderIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentcolor">
 <path d="M8 5.75C7.59 5.75 7.25 5.41 7.25 5V2C7.25 1.59 7.59 1.25 8 1.25C8.41 1.25 8.75 1.59 8.75 2V5C8.75 5.41 8.41 5.75 8 5.75Z"/>
@@ -18,33 +18,44 @@ const DateCalenderIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" hei
  * additional functionality for a datepicker widget.
  */
 class DatepickerExtended extends Widget {
+  settings: DatepickerOptions;
+
+  constructor(element: Element, options: {}) {
+    super(element, options);
+    this.settings = {};
+  }
+
   static get selector() {
     return '.question input[type="date"]';
   }
 
   _init() {
-    const [settings, placeholder] = this.props.appearances.includes("year")
-      ? [
-          {
-            format: "yyyy",
-            pickLevel: 2,
-          },
-          "YYYY",
-        ]
-      : this.props.appearances.includes("month-year")
-      ? [
-          {
-            format: "M yyyy",
-            pickLevel: 1,
-          },
-          "MMM YYYY",
-        ]
-      : [
-          {
-            format: "M dd yyyy",
-          },
-          "MMM DD YYYY",
-        ];
+    const [settings, placeholder]: [DatepickerOptions, string] =
+      this.props.appearances.includes("year")
+        ? [
+            {
+              format: "yyyy",
+              pickLevel: 2,
+            },
+            "YYYY",
+          ]
+        : this.props.appearances.includes("month-year")
+        ? [
+            {
+              format: "M yyyy",
+              pickLevel: 1,
+            },
+            "MMM YYYY",
+          ]
+        : [
+            {
+              format: "M dd yyyy",
+            },
+            "MMM DD YYYY",
+          ];
+    if (this.props.appearances.includes("max_today"))
+      settings.maxDate = new Date();
+
     this.settings = settings;
     const fragment = document.createRange().createContextualFragment(
       `<div class="widget datepicker-widget">

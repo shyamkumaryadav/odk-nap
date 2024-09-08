@@ -307,33 +307,6 @@ export async function init(
   </div>`;
   root.appendChild(div_);
 
-  function sortXmlByName(xmlDoc: Document): Document {
-    // Get the root element and its 'item' children
-    const root = xmlDoc.getElementsByTagName("root")[0];
-    if (!root) {
-      throw new Error("No 'root' element found in the XML document.");
-    }
-
-    const items = Array.from(root.getElementsByTagName("item"));
-
-    // Sort items by the text content of their 'name' element
-    items.sort((a, b) => {
-      const nameA = a.getElementsByTagName("label")[0]?.textContent ?? "";
-      const nameB = b.getElementsByTagName("label")[0]?.textContent ?? "";
-      return nameA.localeCompare(nameB, undefined, { numeric: true });
-    });
-
-    // Create a new root element to store sorted items
-    const newRoot = xmlDoc.createElement("root");
-
-    items.forEach((item) => newRoot.appendChild(item));
-
-    // Replace the old root with the new sorted root
-    xmlDoc.replaceChild(newRoot, root);
-
-    return xmlDoc;
-  }
-
   const model = result.model;
   const parser = new DOMParser();
   const doc = parser.parseFromString(model, "text/xml");
@@ -347,6 +320,9 @@ export async function init(
     if (!["survey", "phase"].includes(src)) {
       try {
         const res = await fetch(src);
+        if (!res.ok) {
+          throw new Error("Network response was not ok");
+        }
         const contentType = res.headers.get("Content-Type")!;
         const responseData = await res.text();
         let result: Document;
@@ -453,10 +429,7 @@ export async function init(
         _prepareInstance(result.model, defaults),
       // optional boolean whether this instance has ever been submitted before
       submitted: false,
-      external: externalData.map((item) => ({
-        id: item.id,
-        xml: sortXmlByName(item.xml),
-      })),
+      external: externalData,
       // optional object of session properties
       // 'deviceid', 'username', 'email', 'phonenumber', 'simserial', 'subscriberid'
       session: {},
