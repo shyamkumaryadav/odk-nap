@@ -29,7 +29,7 @@ export default defineConfig({
   },
 
   optimizeDeps: {
-    exclude: ["enketo/widgets", "enketo/config"],
+    exclude: ["enketo/widgets"],
   },
   define: {
     "import.meta.env.LAST_BUILD": JSON.stringify(new Date().toString()),

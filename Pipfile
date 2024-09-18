@@ -13,6 +13,9 @@ faker = "*"
 lorem = "*"
 dicttoxml = "*"
 xmltodict = "*"
+django = "*"
+numpy = "==1.26.4"
+tabulate = "*"
 
 [dev-packages]
 

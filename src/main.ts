@@ -1,6 +1,9 @@
 import event from "enketo-core/src/js/event";
 // @ts-ignore
-import { Form, FormModel } from "enketo-core";
+import { Form } from "enketo-core";
+import calcModule from "enketo-core/src/js/calculate";
+import { FormModel } from "enketo-core/src/js/form-model";
+import preloadModule from "enketo-core/src/js/preload";
 import { transform } from "enketo-transformer/web";
 import "./styles/main.scss";
 
@@ -12,6 +15,19 @@ import {
   csvToXml,
 } from "./utils";
 import scoreModule from "./score";
+
+if (localStorage.getItem("readonly_view") === "true") {
+  console.log("readonly view");
+  calcModule.update = () => {
+    console.log("Calculations disabled.");
+  };
+  FormModel.prototype.setInstanceIdAndDeprecatedId = () => {
+    console.log("InstanceID and deprecatedID population disabled.");
+  };
+  preloadModule.init = () => {
+    console.log("Preloaders disabled.");
+  };
+}
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
 
@@ -243,6 +259,9 @@ export async function init(
     <label class="inline-flex p-4 gap-3" for="score">Real-Time Calculation (Slow)
       <input type="checkbox" id="score" class="ignore" value="show" />
     </label>
+    <label class="inline-flex p-4 gap-3" for="readonly_view">View Form In Read-Only Mode
+      <input type="checkbox" id="readonly_view" class="ignore" value="show" />
+    </label>
     <br/>
      <button
       type="button"
@@ -306,6 +325,26 @@ export async function init(
     <textarea class="border !m-4 py-2 px-3 !h-24" cols="100" placeholder="Paste XML Instance Data here" id="load-mock"></textarea>
   </div>`;
   root.appendChild(div_);
+
+  if (localStorage.getItem("readonly_view") === "true") {
+    const formFragment = div_.querySelector("form.or")!;
+    [
+      ...formFragment.querySelectorAll<HTMLInputElement>(
+        ".question input:not([readonly]), .question textarea:not([readonly]), .question select:not([readonly])"
+      ),
+    ].forEach((el) => {
+      el.setAttribute("readonly", "readonly");
+      el.classList.add("readonly-forced");
+    });
+    // Properly make native selects readonly (for touchscreens)
+    formFragment
+      .querySelectorAll<HTMLSelectElement>("select option, input")
+      .forEach((el) => (el.disabled = true));
+    // prevent adding an Add/Remove UI on repeats
+    formFragment
+      .querySelectorAll(".or-repeat-info")
+      .forEach((el) => el.setAttribute("data-repeat-fixed", "fixed"));
+  }
 
   const model = result.model;
   const parser = new DOMParser();
@@ -553,6 +592,17 @@ export async function init(
   score.checked = localStorage.getItem("score") === "true";
   score.addEventListener("change", () => {
     localStorage.setItem("score", score.checked ? "true" : "false");
+  });
+
+  const readonly = document.querySelector<HTMLInputElement>("#readonly_view")!;
+  readonly.checked = localStorage.getItem("readonly_view") === "true";
+  readonly.addEventListener("change", () => {
+    localStorage.setItem("readonly_view", readonly.checked ? "true" : "false");
+    if (readonly.checked) {
+      localStorage.setItem("form-odk", form.model.getStr());
+    }
+    localStorage.setItem("pages", readonly.checked ? "false" : "true");
+    window.location.reload();
   });
 
   document.addEventListener("xforms-value-changed", () => {
