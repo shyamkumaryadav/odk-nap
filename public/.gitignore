@@ -1,16 +1,4 @@
 *
 !.gitignore
 
-!nation.xml
-!state.xml
-!district.xml
-!subdistrict.xml
-!block.xml
-!health_facility.xml
-!sub_centre.xml
-!session_site.xml
-!village.xml
-
-!designation.xml
-!organization.xml
-!level.xml
+!*.xml
