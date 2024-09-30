@@ -15,6 +15,7 @@ import {
   csvToXml,
 } from "./utils";
 import scoreModule from "./score";
+import itemsetModule from "./dbitemset";
 
 if (localStorage.getItem("readonly_view") === "true") {
   console.log("readonly view");
@@ -28,6 +29,7 @@ if (localStorage.getItem("readonly_view") === "true") {
     console.log("Preloaders disabled.");
   };
 }
+const range = document.createRange();
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
 
@@ -210,6 +212,7 @@ export async function init(
     theme: "mnm",
     x_form: xform,
     media: {
+      "empty.xml": "/odk-nap/empty.xml",
       "nation.xml": "/odk-nap/nation.xml",
       // locations
       "state.xml": "/odk-nap/state.xml",
@@ -228,6 +231,26 @@ export async function init(
       "phase.xml": "phase",
     },
   });
+
+  if (localStorage.getItem("readonly_view") === "true") {
+    const formFragment = range.createContextualFragment(result.form);
+    [
+      ...formFragment.querySelectorAll<HTMLInputElement>(
+        ".question input:not([readonly]), .question textarea:not([readonly]), .question select:not([readonly])"
+      ),
+    ].forEach((el) => {
+      el.setAttribute("readonly", "readonly");
+      el.classList.add("readonly-forced");
+    });
+    // Properly make native selects readonly (for touchscreens)
+    formFragment
+      .querySelectorAll<HTMLInputElement>("input, textarea, select, button")
+      .forEach((el) => (el.disabled = true));
+    // prevent adding an Add/Remove UI on repeats
+    formFragment
+      .querySelectorAll(".or-repeat-info")
+      .forEach((el) => el.setAttribute("data-repeat-fixed", "fixed"));
+  }
 
   root.innerHTML = "";
   const div_ = document.createElement("div");
@@ -253,7 +276,7 @@ export async function init(
 </header>` +
     result.form +
     ` <div class="form-footer select-none">
-    <label class="inline-flex p-4 gap-3" for="page">Toggle Pages
+    <label class="inline-flex p-4 gap-3 aria-hidden:hidden" aria-hidden="true" for="page">Toggle Pages
       <input type="checkbox" id="page" class="ml-2" value="show" />
     </label>
     <label class="inline-flex p-4 gap-3" for="score">Real-Time Calculation (Slow)
@@ -321,6 +344,9 @@ export async function init(
     </button>
     <button id="delete-localstorage" class="bg-red-500 hover:bg-red-200 px-3 py-2 rounded ml-3 transition-colors duration-200 ease-in-out">
       Delete Local Storage
+    </button>
+    <button id="new-window-html" class="bg-orange-500 hover:bg-orange-200 px-3 py-2 rounded ml-3 transition-colors duration-200 ease-in-out">
+      HTML5
     </button>
     <textarea class="border !m-4 py-2 px-3 !h-24" cols="100" placeholder="Paste XML Instance Data here" id="load-mock"></textarea>
   </div>`;
@@ -457,49 +483,22 @@ export async function init(
   );
 
   const loadErrors = form.init();
+
+  if (localStorage.getItem("readonly_view") === "true") {
+    // hide all repeat with empty values
+    Object.keys(form.model.templates).forEach((kk) => {
+      form.model.evaluate(kk, "string").replace(/\s+/g, "") === "" &&
+        document.getElementsByName(kk)[0].classList.add("hidden");
+    });
+  }
+
   // add score module
   form.score = form.addModule(scoreModule);
+  form.dbitemset = form.addModule(itemsetModule);
+  form.dbitemset.init();
   document.title = form.surveyName;
 
   window.odk_form = form;
-
-  if (localStorage.getItem("readonly_view") === "true") {
-    const formFragment = form.view.html;
-    [
-      ...formFragment.querySelectorAll<HTMLInputElement>(
-        ".question input:not([readonly]), .question textarea:not([readonly]), .question select:not([readonly])"
-      ),
-    ].forEach((el) => {
-      el.setAttribute("readonly", "readonly");
-      el.classList.add("readonly-forced");
-    });
-    // Properly make native selects readonly (for touchscreens)
-    formFragment
-      .querySelectorAll<HTMLSelectElement>("input, textarea, select, button")
-      .forEach((el: HTMLInputElement) => (el.disabled = true));
-    // prevent adding an Add/Remove UI on repeats
-    formFragment
-      .querySelectorAll(".or-repeat-info")
-      .forEach((el: HTMLElement) =>
-        el.setAttribute("data-repeat-fixed", "fixed")
-      );
-    formFragment
-      .querySelectorAll(".or-repeat-info")
-      .forEach((el: HTMLElement) => {
-        // loop on each repeat and count the number
-        if (
-          form.model.evaluate(
-            `count(${el.parentElement?.getAttribute("name")})`,
-            "number"
-          ) === 1 &&
-          form.model
-            .evaluate(el.parentElement?.getAttribute("name"), "string")
-            .trim() === ""
-        ) {
-          console.log("remove repeat");
-        }
-      });
-  }
 
   // add date in 'ISO 8601' format and log the all question
   const form_logo = document.querySelector<HTMLElement>("section.form-logo");
@@ -565,6 +564,13 @@ export async function init(
     form.view.html.dispatchEvent(event.BeforeSave());
   });
 
+  const newWindowHTML = document.querySelector("#new-window-html")!;
+  newWindowHTML.addEventListener("click", () => {
+    const html = result.form;
+    const win = window.open("", "HTML5");
+    win!.document.body.innerHTML = html;
+  });
+
   const draftButton = document.querySelector("#draft-page")!;
   draftButton.addEventListener("click", () => {
     const phase = form.model.evaluate("//phase", "number");
@@ -598,8 +604,9 @@ export async function init(
 
   const pages = document.querySelector<HTMLInputElement>("#page")!;
   pages.checked = localStorage.getItem("pages") === "true";
-  if (pages.checked && form.features.pagination) {
-    form.view.html.classList.toggle("pages");
+  if (form.features.pagination) {
+    pages.parentElement?.removeAttribute("aria-hidden");
+    pages.checked && form.view.html.classList.toggle("pages");
   } else {
     pages.parentElement?.remove();
   }
