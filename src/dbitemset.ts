@@ -7,7 +7,7 @@ import {
 } from "enketo-core/src/js/dom-utils";
 import events from "enketo-core/src/js/event";
 
-const DB_ITEMSET_TEMPLATE = "loc";
+const DB_ITEMSET_TEMPLATE = "local_db";
 
 export default {
   /**

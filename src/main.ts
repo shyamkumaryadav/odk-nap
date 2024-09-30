@@ -1,9 +1,7 @@
 import event from "enketo-core/src/js/event";
 // @ts-ignore
 import { Form } from "enketo-core";
-import calcModule from "enketo-core/src/js/calculate";
 import { FormModel } from "enketo-core/src/js/form-model";
-import preloadModule from "enketo-core/src/js/preload";
 import { transform } from "enketo-transformer/web";
 import "./styles/main.scss";
 
@@ -16,20 +14,6 @@ import {
 } from "./utils";
 import scoreModule from "./score";
 import itemsetModule from "./dbitemset";
-
-if (localStorage.getItem("readonly_view") === "true") {
-  console.log("readonly view");
-  calcModule.update = () => {
-    console.log("Calculations disabled.");
-  };
-  FormModel.prototype.setInstanceIdAndDeprecatedId = () => {
-    console.log("InstanceID and deprecatedID population disabled.");
-  };
-  preloadModule.init = () => {
-    console.log("Preloaders disabled.");
-  };
-}
-const range = document.createRange();
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
 
@@ -232,26 +216,6 @@ export async function init(
     },
   });
 
-  if (localStorage.getItem("readonly_view") === "true") {
-    const formFragment = range.createContextualFragment(result.form);
-    [
-      ...formFragment.querySelectorAll<HTMLInputElement>(
-        ".question input:not([readonly]), .question textarea:not([readonly]), .question select:not([readonly])"
-      ),
-    ].forEach((el) => {
-      el.setAttribute("readonly", "readonly");
-      el.classList.add("readonly-forced");
-    });
-    // Properly make native selects readonly (for touchscreens)
-    formFragment
-      .querySelectorAll<HTMLInputElement>("input, textarea, select, button")
-      .forEach((el) => (el.disabled = true));
-    // prevent adding an Add/Remove UI on repeats
-    formFragment
-      .querySelectorAll(".or-repeat-info")
-      .forEach((el) => el.setAttribute("data-repeat-fixed", "fixed"));
-  }
-
   root.innerHTML = "";
   const div_ = document.createElement("div");
   div_.id = "mnm-form";
@@ -281,9 +245,6 @@ export async function init(
     </label>
     <label class="inline-flex p-4 gap-3" for="score">Real-Time Calculation (Slow)
       <input type="checkbox" id="score" class="ignore" value="show" />
-    </label>
-    <label class="inline-flex p-4 gap-3" for="readonly_view">View Form In Read-Only Mode
-      <input type="checkbox" id="readonly_view" class="ignore" value="show" />
     </label>
     <br/>
      <button
@@ -484,14 +445,6 @@ export async function init(
 
   const loadErrors = form.init();
 
-  if (localStorage.getItem("readonly_view") === "true") {
-    // hide all repeat with empty values
-    Object.keys(form.model.templates).forEach((kk) => {
-      form.model.evaluate(kk, "string").replace(/\s+/g, "") === "" &&
-        document.getElementsByName(kk)[0].classList.add("hidden");
-    });
-  }
-
   // add score module
   form.score = form.addModule(scoreModule);
   form.dbitemset = form.addModule(itemsetModule);
@@ -619,16 +572,6 @@ export async function init(
   score.checked = localStorage.getItem("score") === "true";
   score.addEventListener("change", () => {
     localStorage.setItem("score", score.checked ? "true" : "false");
-  });
-
-  const readonly = document.querySelector<HTMLInputElement>("#readonly_view")!;
-  readonly.checked = localStorage.getItem("readonly_view") === "true";
-  readonly.addEventListener("change", () => {
-    localStorage.setItem("readonly_view", readonly.checked ? "true" : "false");
-    if (readonly.checked) {
-      localStorage.setItem("form-odk", form.model.getStr());
-    }
-    window.location.reload();
   });
 
   document.addEventListener("xforms-value-changed", () => {
