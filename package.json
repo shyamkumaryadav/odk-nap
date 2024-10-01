@@ -22,6 +22,7 @@
   "dependencies": {
     "enketo-core": "^8.0.0",
     "enketo-transformer": "^4.0.0",
+    "idb": "^8.0.0",
     "papaparse": "^5.4.1",
     "vanillajs-datepicker": "^1.3.4"
   }

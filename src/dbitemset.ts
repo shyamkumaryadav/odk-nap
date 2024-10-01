@@ -95,6 +95,7 @@ export default {
     }
 
     const alerts = [];
+    console.log(updated);
 
     nodes.forEach((template) => {
       // Nodes are in document order, so we discard any nodes in questions/groups that have a disabled parent
@@ -210,19 +211,16 @@ export default {
         parent_id: parentMatch ? parentMatch[1] : null,
         parent_value: parentMatch ? parentMatch[2] : null,
       };
-      console.time(detail.instance);
-      // fetch the data from DB and update the items list
-      console.log(
-        "fetching data from table [ ",
-        detail.instance,
-        detail.parent_id
-          ? ` ] with Filter ${detail.parent_id}=${
+      const message =
+        `Tabel [${detail.instance}]` +
+        (detail.parent_id
+          ? ` Filter ${detail.parent_id}=${
               that.form.model.evaluate(detail.parent_value, "number") || 0
             }`
-          : " ]"
-      );
+          : "");
+      console.time(message);
       setTimeout(() => {
-        console.timeEnd(detail.instance);
+        console.timeEnd(message);
       }, 1000);
     });
   },
