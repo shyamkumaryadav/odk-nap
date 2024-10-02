@@ -1,8 +1,9 @@
 import event from "enketo-core/src/js/event";
 // @ts-ignore
-import { Form } from "enketo-core";
-import { FormModel } from "enketo-core/src/js/form-model";
+import { Form, FormModel } from "enketo-core";
 import { transform } from "enketo-transformer/web";
+import Papa from "papaparse";
+
 import "./styles/main.scss";
 
 import {
@@ -14,11 +15,93 @@ import {
 } from "./utils";
 import scoreModule from "./score";
 import itemsetModule from "./dbitemset";
+import {
+  addItemsToStore,
+  clearStore,
+  DB_ITEMSET_ITEM,
+  getItemsFromStore,
+  ITEMSET_KEY,
+  ITEMSET_TABLES,
+  ITEMSET_TABLES_NAME,
+} from "./db";
+import {
+  EMPTY,
+  DESIGNATION,
+  LGD_ULB_HEALTH_HULB,
+  DISTRICT,
+  HEALTH_FACILITY,
+  LEVEL,
+  ORGANIZATION,
+  SESSION_SITE,
+  SUB_CENTRE,
+  SUB_DISTRICT,
+  STATE,
+} from "./static";
+
+const STATIC_URL: {
+  [key in ITEMSET_TABLES_NAME]: string;
+} = {
+  state: STATE,
+  district: DISTRICT,
+  sub_district: SUB_DISTRICT,
+  lgd_ulb_health_hulb: LGD_ULB_HEALTH_HULB,
+  health_facility: HEALTH_FACILITY,
+  sub_centre: SUB_CENTRE,
+  session_site: SESSION_SITE,
+};
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
 
 setupDropdown(document.querySelector<HTMLDivElement>("#dropdown")!);
 setupLocalStorage(document.querySelector<HTMLDivElement>("#localstorage")!);
+
+window.loadData = (tb?: ITEMSET_TABLES_NAME, pid: ITEMSET_KEY = 1) => {
+  Object.values(ITEMSET_TABLES).forEach((tableName) => {
+    if (tb) {
+      if (tb === tableName) {
+        getItemsFromStore(tb, pid).then((items) => {
+          console.log(tableName, items);
+        });
+      }
+    } else {
+      getItemsFromStore(tableName, pid).then((items) => {
+        console.log(tableName, items);
+      });
+    }
+  });
+};
+
+window.dumpData = (tb_ = Object.values(ITEMSET_TABLES)) => {
+  const work: Promise<void>[] = [];
+  let completedCount = 0;
+  const totalCount = tb_.length;
+  tb_.forEach((tableName) => {
+    const URL = STATIC_URL[tableName];
+    work.push(
+      fetch(URL)
+        .then((response) => response.text())
+        .then((text) => {
+          const items = Papa.parse<DB_ITEMSET_ITEM>(text, {
+            header: true,
+            skipEmptyLines: true,
+            dynamicTyping: true,
+          }).data;
+          return addItemsToStore(tableName, items);
+        })
+        .finally(() => {
+          completedCount++;
+          const progressPercentage = Math.round(
+            (completedCount / totalCount) * 100
+          );
+          document.getElementById("db_progress")!.textContent =
+            progressPercentage + "%";
+        })
+    );
+  });
+  Promise.all(work).then(() => {
+    alert("Data Loaded");
+  });
+};
 
 export async function init(
   form_ = new URLSearchParams(window.location.search).get("form") ||
@@ -196,20 +279,19 @@ export async function init(
     theme: "mnm",
     x_form: xform,
     media: {
-      "empty.xml": "/odk-nap/empty.xml",
-      "nation.xml": "/odk-nap/nation.xml",
+      "empty.xml": EMPTY,
       // locations
-      "state.xml": "/odk-nap/empty.xml",
-      "district.xml": "/odk-nap/empty.xml",
-      "sub_district.xml": "/odk-nap/empty.xml",
-      "lgd_ulb_health_hulb.xml": "/odk-nap/empty.xml",
-      "health_facility.xml": "/odk-nap/empty.xml",
-      "sub_centre.xml": "/odk-nap/empty.xml",
-      "session_site.xml": "/odk-nap/empty.xml",
+      "state.xml": EMPTY,
+      "district.xml": EMPTY,
+      "sub_district.xml": EMPTY,
+      "lgd_ulb_health_hulb.xml": EMPTY,
+      "health_facility.xml": EMPTY,
+      "sub_centre.xml": EMPTY,
+      "session_site.xml": EMPTY,
       // user data
-      "designation.xml": "/odk-nap/designation.xml",
-      "organization.xml": "/odk-nap/organization.xml",
-      "level.xml": "/odk-nap/level.xml",
+      "designation.xml": DESIGNATION,
+      "organization.xml": ORGANIZATION,
+      "level.xml": LEVEL,
       // survey data
       "survey.xml": "survey",
       "phase.xml": "phase",
@@ -308,6 +390,9 @@ export async function init(
     </button>
     <button id="new-window-html" class="bg-orange-500 hover:bg-orange-200 px-3 py-2 rounded ml-3 transition-colors duration-200 ease-in-out">
       HTML5
+    </button>
+    <button id="load_local_db" class="bg-sky-500 hover:bg-sky-200 px-3 py-2 rounded ml-3 transition-colors duration-200 ease-in-out">
+      Load Local DB <span id="db_progress" class="text-xs">%</span>
     </button>
     <textarea class="border !m-4 py-2 px-3 !h-24" cols="100" placeholder="Paste XML Instance Data here" id="load-mock"></textarea>
   </div>`;
@@ -572,6 +657,19 @@ export async function init(
   score.checked = localStorage.getItem("score") === "true";
   score.addEventListener("change", () => {
     localStorage.setItem("score", score.checked ? "true" : "false");
+  });
+
+  document.getElementById("load_local_db")!.addEventListener("click", () => {
+    Promise.all(
+      window.confirm("Are you sure you want to clear local store?")
+        ? Object.values(ITEMSET_TABLES).map((tableName) => {
+            clearStore(tableName);
+          })
+        : []
+    ).then(() => {
+      if (window.confirm("Do you want to load data from csv?"))
+        window.dumpData();
+    });
   });
 
   document.addEventListener("xforms-value-changed", () => {

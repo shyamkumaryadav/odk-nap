@@ -7,6 +7,8 @@ import {
 } from "enketo-core/src/js/dom-utils";
 import events from "enketo-core/src/js/event";
 
+import { getItemsFromStore } from "./db";
+
 const DB_ITEMSET_TEMPLATE = "local_db";
 
 export default {
@@ -47,7 +49,6 @@ export default {
    */
   update(updated = {}) {
     const that = this;
-    const fragmentsCache = {};
     let nodes;
 
     if (updated.relevantPath) {
@@ -94,9 +95,6 @@ export default {
       return;
     }
 
-    const alerts = [];
-    console.log(updated);
-
     nodes.forEach((template) => {
       // Nodes are in document order, so we discard any nodes in questions/groups that have a disabled parent
       if (template.closest(".disabled")) {
@@ -128,7 +126,10 @@ export default {
         templateParent.parentElement.matches(".or-repeat-info");
       const inputAttributes = {};
 
-      const newItems = {};
+      const newItems = {
+        length: 0,
+        text: "",
+      };
       const prevItems = data.get(template, "items") || {};
       const templateNodeName = template.nodeName.toLowerCase();
       const list = template.parentElement.matches("select")
@@ -198,7 +199,6 @@ export default {
        * It can be safely set to 0 for other branches.
        */
       const index = !isShared ? that.form.input.getIndex(input) : 0;
-      const safeToTryNative = true;
 
       const instanceRegex = /instance\(\s*['"]([^'"]+)['"]\s*\)/;
       const parentRegex = /\[\s*(\w+)\s*=\s*([^\]]+)\s*\]/;
@@ -211,17 +211,58 @@ export default {
         parent_id: parentMatch ? parentMatch[1] : null,
         parent_value: parentMatch ? parentMatch[2] : null,
       };
-      const message =
-        `Tabel [${detail.instance}]` +
-        (detail.parent_id
-          ? ` Filter ${detail.parent_id}=${
-              that.form.model.evaluate(detail.parent_value, "number") || 0
-            }`
-          : "");
+      const parentValue =
+        (detail.parent_value &&
+          (that.form.model.evaluate(detail.parent_value, "number") || -1)) ||
+        NaN;
+      const message = `Tabel [${detail.instance}] --> ${parentValue}`;
       console.time(message);
-      setTimeout(() => {
+      // remove all existing option
+      [...list.querySelectorAll(templateNodeName)]
+        .filter((el) => el !== template)
+        .forEach((el) => el.remove());
+
+      getItemsFromStore(detail.instance, parentValue).then((instanceItems) => {
         console.timeEnd(message);
-      }, 1000);
+        // This property allows for more efficient 'itemschanged' detection
+        newItems.length = instanceItems.length;
+        // TODO: This may cause problems for large itemsets. Use md5 instead?
+        newItems.text = instanceItems.map((item) => item.label).join("");
+        if (
+          newItems.length === prevItems.length &&
+          newItems.text === prevItems.text
+        ) {
+          // check if it's has relevent or not
+          return;
+        }
+
+        data.put(template, "items", newItems);
+        const optionsFragment = document.createDocumentFragment();
+        // sort items based on label A-Z
+        instanceItems.sort((a, b) => {
+          if (a.label < b.label) {
+            return -1;
+          }
+          if (a.label > b.label) {
+            return 1;
+          }
+          return 0;
+        });
+        instanceItems.forEach((item) => {
+          optionsFragment.appendChild(that.createInput(item.name, item.label));
+        });
+        template.parentNode.appendChild(optionsFragment);
+        const currentValue = that.form.model.node(context, index).getVal();
+        if (currentValue !== "") {
+          that.form.input.setVal(input, currentValue, events.Change());
+        }
+      });
     });
+  },
+  createInput(value: number, label: string) {
+    const option = document.createElement("option");
+    option.textContent = label;
+    option.value = String(value);
+    return option;
   },
 };
