@@ -98,8 +98,9 @@ window.dumpData = (tb_ = Object.values(ITEMSET_TABLES)) => {
         })
     );
   });
-  Promise.all(work).then(() => {
+  Promise.all(work).finally(() => {
     alert("Data Loaded");
+    window.location.reload();
   });
 };
 
