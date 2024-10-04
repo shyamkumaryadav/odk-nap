@@ -1,0 +1,177 @@
+<root>
+  <item>
+    <name>1</name>
+    <label>Indira Gandhi Hospital</label>
+    <type>chc</type>
+  </item>
+  <item>
+    <name>2</name>
+    <label>Bytco Hospital</label>
+    <type>chc</type>
+  </item>
+  <item>
+    <name>3</name>
+    <label>Morwadi Hospital</label>
+    <type>chc</type>
+  </item>
+  <item>
+    <name>4</name>
+    <label>Satpur Mico Hospital</label>
+    <type>chc</type>
+  </item>
+  <item>
+    <name>5</name>
+    <label>Dr Zakhir Hussain Hospital Dwarka</label>
+    <type>chc</type>
+  </item>
+  <item>
+    <name>6</name>
+    <label>UPHC Panchavati</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>7</name>
+    <label>UPHC Makhmalabad</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>8</name>
+    <label>UPHC Hirawadi</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>9</name>
+    <label>UPHC Tapovan</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>10</name>
+    <label>UPHC Mhasrul</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>11</name>
+    <label>UPHC Red Cross</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>12</name>
+    <label>UPHC Nashik Road</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>13</name>
+    <label>UPHC Dasak Panchak</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>14</name>
+    <label>UPHC Gorewadi</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>15</name>
+    <label>UPHC Vadnerdumala</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>16</name>
+    <label>UPHC Sinnar Fata</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>17</name>
+    <label>UPHC Cidco</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>18</name>
+    <label>UPHC Ambad</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>19</name>
+    <label>UPHC Kamathvade</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>20</name>
+    <label>UPHC Morwadi</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>21</name>
+    <label>UPHC Pawan Nagar</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>22</name>
+    <label>UPHC Pimpalgaon Khamb</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>23</name>
+    <label>UPHC MHB colony</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>24</name>
+    <label>UPHC Satpur Mico</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>25</name>
+    <label>UPHC Sanjiv nagar</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>26</name>
+    <label>UPHC Gangapur</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>27</name>
+    <label>UPHC Bajrang wadi</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>28</name>
+    <label>UPHC Multanpura</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>29</name>
+    <label>UPHC Jijamata</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>30</name>
+    <label>UPHC Wadalagaon</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>31</name>
+    <label>UPHC SGM</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>32</name>
+    <label>UPHC Bharat Nagar</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>33</name>
+    <label>UPHC Upnagar</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>34</name>
+    <label>UPHC Ram wadi</label>
+    <type>phc</type>
+  </item>
+  <item>
+    <name>35</name>
+    <label>UPHC Civil</label>
+    <type>phc</type>
+  </item>
+</root>

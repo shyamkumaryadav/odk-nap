@@ -36,6 +36,9 @@ import {
   SUB_CENTRE,
   SUB_DISTRICT,
   STATE,
+  HEALTH_FACILITY_ID,
+  STATE_ID,
+  DISTRICT_ID,
 } from "./static";
 
 const STATIC_URL: {
@@ -289,6 +292,11 @@ export async function init(
       "health_facility.xml": EMPTY,
       "sub_centre.xml": EMPTY,
       "session_site.xml": EMPTY,
+      // DB Location
+      "state_id.xml": STATE_ID,
+      "district_id.xml": DISTRICT_ID,
+      "sub_district_id.xml": EMPTY,
+      "health_facility_id.xml": HEALTH_FACILITY_ID,
       // user data
       "designation.xml": DESIGNATION,
       "organization.xml": ORGANIZATION,
