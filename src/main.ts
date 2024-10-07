@@ -76,12 +76,7 @@ window.loadData = (tb?: ITEMSET_TABLES_NAME, pid: ITEMSET_KEY = 1) => {
   });
 };
 
-window.dumpData = (tb_ = Object.values(ITEMSET_TABLES)) => {
-  let totalSizeAllTables = 0; // Total size of all tables combined
-  let loadedSizeAllTables = 0; // Cumulative size of data processed across all tables
-  let tablesProcessed = 0; // Counter for the number of tables processed
-
-  // First, fetch the sizes of all tables and calculate totalSizeAllTables
+window.dumpData = (tb_ = Object.values(ITEMSET_TABLES)) =>
   Promise.all(
     tb_.map((tableName) => {
       const URL = STATIC_URL[tableName];
@@ -98,53 +93,64 @@ window.dumpData = (tb_ = Object.values(ITEMSET_TABLES)) => {
           return { tableName, fileSize: 0 }; // If there is an error, treat file size as 0 to continue
         });
     })
-  ).then((tableSizes) => {
-    // Calculate the total size of all tables
-    totalSizeAllTables = tableSizes.reduce(
-      (acc, table) => acc + table.fileSize,
-      0
-    );
+  )
+    .then((tableSizes) => {
+      // Calculate the total size of all tables
+      const totalSizeAllTables = tableSizes.reduce(
+        (acc, table) => acc + table.fileSize,
+        0
+      );
+      let loadedSizeAllTables = 0; // Cumulative size of data processed across all tables
 
-    // Now parse each table
-    tableSizes.forEach(({ tableName, fileSize }) => {
-      const URL = STATIC_URL[tableName];
+      // Process each table, ensuring we wait for all to complete
+      return Promise.all(
+        tableSizes.map(({ tableName, fileSize }) => {
+          return new Promise<void>((tableResolve, tableReject) => {
+            const URL = STATIC_URL[tableName];
 
-      Papa.parse(URL, {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-        dynamicTyping: true,
-        chunkSize: 0.25 * 1024 * 1024, // 1 MB
-        chunk: (results) => {
-          const chunkSize = results.meta.cursor; // The current byte position in the file
-          const tableProgress = ((chunkSize / fileSize) * 100).toFixed(2); // Progress for this table
+            Papa.parse<DB_ITEMSET_ITEM>(URL, {
+              download: true,
+              header: true,
+              skipEmptyLines: true,
+              dynamicTyping: true,
+              chunkSize: 0.75 * 1024 * 1024, // 0.25 MB
+              chunk: (results) => {
+                const chunkSize = results.meta.cursor; // The current byte position in the file
+                const tempP = loadedSizeAllTables + chunkSize;
+                const totalProgress = (
+                  (tempP / totalSizeAllTables) *
+                  100
+                ).toFixed(2); // Overall progress
 
-          console.log(`${tableName} - Table Progress: ${tableProgress}%`);
-
-          // Update cumulative size processed across all tables
-          loadedSizeAllTables += chunkSize;
-
-          // Calculate combined progress based on size
-          // const combinedProgress = (
-          //   (loadedSizeAllTables / totalSizeAllTables) *
-          //   100
-          // ).toFixed(2);
-          // console.log(
-          //   `Overall Progress: ${combinedProgress}% [${totalSizeAllTables} ${loadedSizeAllTables} ${
-          //     totalSizeAllTables - loadedSizeAllTables
-          //   }]`
-          // );
-        },
-        complete: () => {
-          tablesProcessed += 1; // Increment the table progress counter
-          // console.log(`Completed ${tableName}`);
-          // console.log(`Tables processed: ${tablesProcessed}/${tb_.length}`);
-        },
-        error: (error) => console.error(error, tableName),
-      });
+                // Wait for data to be stored
+                addItemsToStore(tableName, results.data).finally(() => {
+                  // Update progress in UI
+                  document.getElementById("db_progress")!.textContent =
+                    totalProgress + "%";
+                  if (chunkSize === fileSize) {
+                    tableResolve(); // Resolve this table's parsing promise
+                  }
+                });
+              },
+              complete: () => {
+                // When parsing of the table is complete
+                loadedSizeAllTables += fileSize; // Add the file size to the total loaded size
+              },
+              error: (error) => {
+                console.error(`Error parsing ${tableName}:`, error);
+                tableReject(error);
+              },
+            });
+          });
+        })
+      );
+    })
+    .then(() => {
+      console.log("All data loaded successfully");
+    })
+    .catch((error) => {
+      console.error("Error during processing:", error);
     });
-  });
-};
 
 export async function init(
   form_ = new URLSearchParams(window.location.search).get("form") ||
