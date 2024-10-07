@@ -20,6 +20,7 @@
     "vite": "^4.4.5"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.1.0",
     "enketo-core": "^8.0.0",
     "enketo-transformer": "^4.0.0",
     "idb": "^8.0.0",

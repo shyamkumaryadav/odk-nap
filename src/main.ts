@@ -3,6 +3,8 @@ import event from "enketo-core/src/js/event";
 import { Form, FormModel } from "enketo-core";
 import { transform } from "enketo-transformer/web";
 import Papa from "papaparse";
+import "@fontsource/inter";
+import "@fontsource/inter/400-italic.css";
 
 import "./styles/main.scss";
 
@@ -75,35 +77,72 @@ window.loadData = (tb?: ITEMSET_TABLES_NAME, pid: ITEMSET_KEY = 1) => {
 };
 
 window.dumpData = (tb_ = Object.values(ITEMSET_TABLES)) => {
-  const work: Promise<void>[] = [];
-  let completedCount = 0;
-  const totalCount = tb_.length;
-  tb_.forEach((tableName) => {
-    const URL = STATIC_URL[tableName];
-    work.push(
-      fetch(URL)
-        .then((response) => response.text())
-        .then((text) => {
-          const items = Papa.parse<DB_ITEMSET_ITEM>(text, {
-            header: true,
-            skipEmptyLines: true,
-            dynamicTyping: true,
-          }).data;
-          return addItemsToStore(tableName, items);
+  let totalSizeAllTables = 0; // Total size of all tables combined
+  let loadedSizeAllTables = 0; // Cumulative size of data processed across all tables
+  let tablesProcessed = 0; // Counter for the number of tables processed
+
+  // First, fetch the sizes of all tables and calculate totalSizeAllTables
+  Promise.all(
+    tb_.map((tableName) => {
+      const URL = STATIC_URL[tableName];
+      return fetch(URL, { method: "HEAD" })
+        .then((response) => {
+          const fileSize = parseInt(
+            response.headers.get("content-length")!,
+            10
+          ); // Get the total file size
+          return { tableName, fileSize };
         })
-        .finally(() => {
-          completedCount++;
-          const progressPercentage = Math.round(
-            (completedCount / totalCount) * 100
-          );
-          document.getElementById("db_progress")!.textContent =
-            progressPercentage + "%";
-        })
+        .catch((error) => {
+          console.error(`Error fetching file size for ${tableName}:`, error);
+          return { tableName, fileSize: 0 }; // If there is an error, treat file size as 0 to continue
+        });
+    })
+  ).then((tableSizes) => {
+    // Calculate the total size of all tables
+    totalSizeAllTables = tableSizes.reduce(
+      (acc, table) => acc + table.fileSize,
+      0
     );
-  });
-  Promise.all(work).finally(() => {
-    alert("Data Loaded");
-    window.location.reload();
+
+    // Now parse each table
+    tableSizes.forEach(({ tableName, fileSize }) => {
+      const URL = STATIC_URL[tableName];
+
+      Papa.parse(URL, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        dynamicTyping: true,
+        chunkSize: 0.25 * 1024 * 1024, // 1 MB
+        chunk: (results) => {
+          const chunkSize = results.meta.cursor; // The current byte position in the file
+          const tableProgress = ((chunkSize / fileSize) * 100).toFixed(2); // Progress for this table
+
+          console.log(`${tableName} - Table Progress: ${tableProgress}%`);
+
+          // Update cumulative size processed across all tables
+          loadedSizeAllTables += chunkSize;
+
+          // Calculate combined progress based on size
+          // const combinedProgress = (
+          //   (loadedSizeAllTables / totalSizeAllTables) *
+          //   100
+          // ).toFixed(2);
+          // console.log(
+          //   `Overall Progress: ${combinedProgress}% [${totalSizeAllTables} ${loadedSizeAllTables} ${
+          //     totalSizeAllTables - loadedSizeAllTables
+          //   }]`
+          // );
+        },
+        complete: () => {
+          tablesProcessed += 1; // Increment the table progress counter
+          // console.log(`Completed ${tableName}`);
+          // console.log(`Tables processed: ${tablesProcessed}/${tb_.length}`);
+        },
+        error: (error) => console.error(error, tableName),
+      });
+    });
   });
 };
 

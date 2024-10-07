@@ -49,7 +49,6 @@
 an input element. */
 .option-wrapper {
   > label {
-    font-family: Inter;
     font-size: $font-size-base;
     font-weight: 400;
     color: $text-primary-color;
@@ -111,8 +110,7 @@ element in a form. It sets different styles for different types of input element
   &[type="number"],
   &[type="time"],
   &[type="text"].mask-date {
-    width: -webkit-fill-available;
-    width: -moz-fill-available;
+    width: 100%;
     color: $text-primary-color !important;
     border: 1px solid $neutral-Gray-100;
     padding: 11px 19px 11px 10px;
