@@ -577,7 +577,9 @@ export async function init(
       external: externalData,
       // optional object of session properties
       // 'deviceid', 'username', 'email', 'phonenumber', 'simserial', 'subscriberid'
-      session: {},
+      session: {
+        subscriberid: ["govt", "partner"][Math.floor(Math.random() * 2)],
+      },
     },
     {}
   );
