@@ -13,6 +13,9 @@ export const ITEMSET_TABLES = {
   SESSION_SITE: "session_site",
 } as const;
 
+// @ts-ignore
+window.ITEMSET_TABLES = ITEMSET_TABLES;
+
 type ObjectValues<T> = T[keyof T];
 
 export type ITEMSET_TABLES_NAME = ObjectValues<typeof ITEMSET_TABLES>;
@@ -48,6 +51,9 @@ const dbPromise = openDB<IDBSchema>(DB_NAME, DB_VERSION, {
     });
   },
 });
+
+// @ts-ignore
+window.db = dbPromise;
 
 export const addItemsToStore = async (
   tableName: ITEMSET_TABLES_NAME,
