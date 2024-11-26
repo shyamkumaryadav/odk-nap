@@ -132,9 +132,15 @@ export default {
                   : "");
               const value = that.form.model.evaluate(model_name, "string");
 
-              const instanceName = tocItem.element
+              let instanceName = tocItem.element
                 .querySelector("label.contains-ref-target")!
-                .getAttribute("data-items-path");
+                .getAttribute("data-items-path")!;
+
+              const instanceNameRegex = /instance\('(.*)'\)\/root\/item/;
+              const instanceNameMatch = instanceName.match(instanceNameRegex);
+              if (instanceNameMatch) {
+                instanceName = instanceNameMatch[0];
+              }
 
               tocItem.score_total =
                 that.form.model.evaluate(
