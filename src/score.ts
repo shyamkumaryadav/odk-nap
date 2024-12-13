@@ -201,6 +201,11 @@ export default {
             tocItem.personal = personal / maxCount;
             tocItem.max = max / maxCount;
             tocItem.max_personal = max_personal / maxCount;
+
+            if (tocItem.element.classList.contains("disabled")) {
+              tocItem.score = 0;
+              tocItem.personal = 0;
+            }
           } else {
             let calculate_name = "";
             if (!!tocItem.element.closest(".or-repeat")) {
@@ -218,7 +223,12 @@ export default {
                 .getElement()
             ) {
               const calculate_value = that.form.model
-                .evaluate(calculate_name, "string")
+                .evaluate(
+                  that.form.view.$.find(
+                    `.calculation [name='${calculate_name}']`
+                  ).attr("data-calculate"),
+                  "string"
+                )
                 .split(" ")
                 .map((v: string) => Number(v));
               if (calculate_value.length === 2) {
@@ -265,6 +275,7 @@ export default {
                   : 0;
               }
             }
+
             if (tocItem.element.classList.contains("disabled")) {
               tocItem.score = 0;
             }

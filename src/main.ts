@@ -636,11 +636,11 @@ export async function init(
           )
             printTOCScore();
           else {
-            printTOCScore();
             alert(
               "Please complete the questions which is in repeat\n" +
                 li.join("\n")
             );
+            printTOCScore();
           }
         };
 
