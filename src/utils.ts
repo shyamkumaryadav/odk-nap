@@ -1,5 +1,6 @@
 import { init } from "./main";
 import Papa from "papaparse";
+import { SCORE_FIELD, TOC_ITEMS } from "./score";
 
 const btnClass = [
   "px-3",
@@ -343,4 +344,123 @@ export function csvToXml(csv: string) {
   const result = csvToArray(csv);
 
   return arrayToXml(result);
+}
+
+export function printTOCScore() {
+  const _X = window.odk_form;
+  const newWindow = window.open(
+    "",
+    _X.surveyName,
+    "width=800,height=600,popup"
+  );
+
+  const _tocItems: TOC_ITEMS = _X.score.getScore(true);
+
+  // // Calculate max score and max score_max
+  const { score, max, max_personal, personal } = _tocItems.reduce<SCORE_FIELD>(
+    (acc, item) => {
+      acc.score += item.score;
+      acc.max += item.max;
+      acc.personal += item.personal;
+      acc.max_personal += item.max_personal;
+      return acc;
+    },
+    { score: 0, max: 0, personal: 0, max_personal: 0 }
+  );
+
+  // Check if the new window is opened
+  if (newWindow) {
+    // Generate HTML content for the new window
+    let htmlContent = `<!DOCTYPE html><html><head><title>${_X.surveyName}</title></head><style>span:hover { background-color: #58e94759; }</style><body>
+                    <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%; text-align: center;">
+                    <caption>${_X.surveyName} (${_X.version}) <button onclick="window.print()">Print</button></caption>
+                    <thead><tr><th>ID</th><th>Name</th><th>Facility Score</th><th>Facility Max</th><th>Personnel Score</th><th>Personnel Max</th></tr></thead><tbody>`;
+
+    function extractSuffixAndText(text: string) {
+      const match = text.match(
+        /^(([1-9]{1,2}\.?|[a-z]{1,4}\.?|[A-Z]\.?)*)\s+(.*)/
+      );
+      if (match) {
+        const suffix = match[1];
+        const label = match[3];
+        // Check if the suffix has valid parts (1 character each, separated by a dot)
+        const isValidSuffix = suffix
+          .split(".")
+          .every((part) => part.length <= 1);
+        return isValidSuffix
+          ? [["<b>", "</b>"].join(suffix), label]
+          : [null, text];
+      } else {
+        return [null, text];
+      }
+    }
+
+    _tocItems.forEach((item) => {
+      const [suffix, text] = extractSuffixAndText(item.label);
+      console.log({ suffix, text });
+      htmlContent += `<tr title="${item.label}"><td><a href="#${item.name}">${suffix}</td><td>${text}</td><td>${item.score}</td><td>${item.max}</td><td>${item.personal}</td><td>${item.max_personal}</td></tr>`;
+    });
+
+    htmlContent += `</tbody><tfoot><tr><td>Parentage</td><td>${(
+      (score * 100) /
+      max
+    ).toFixed(1)} % / ${((personal * 100) / max_personal).toFixed(
+      1
+    )} %</td><td>${score}</td><td>${max}</td><td>${personal}</td><td>${max_personal}</td></tr></tfoot></table>`;
+
+    htmlContent += `<pre style="line-height: 1rem;background-image: linear-gradient(180deg, #eee 50%, #fff 50%); background-size: 100% 2rem; overflow: auto;">
+    <span><mark><u>Select Multiple</u></mark> {NUMBER} Repet With Number</span>\n`;
+
+    // Recursive function to build HTML content
+    function buildHtml(tocItems: TOC_ITEMS, prefix = ""): void {
+      tocItems.forEach((item, index) => {
+        const isLast = index === tocItems.length - 1;
+        const currentPrefix = prefix + (isLast ? "└───" : "├───");
+        const isMulti =
+          !item.children &&
+          !!item.element.querySelector("input[type=checkbox]");
+
+        const styles = isMulti ? ["<mark><u>", "</u></mark>"] : ["", ""];
+        htmlContent += `<span data-info='${JSON.stringify(
+          {
+            ...item,
+            element: undefined,
+            children: undefined,
+            parent: undefined,
+            tocId: undefined,
+            tocParentId: undefined,
+            nodeName: _X.score.nodeName,
+          },
+          null,
+          2
+        )}' id="${
+          item.name
+        }" style="cursor: pointer;" onclick="alert(this.dataset.info);">${currentPrefix} [${
+          item.score
+        }/${item.max}] [${item.personal}/${item.max_personal}] ${styles.join(
+          extractSuffixAndText(item.label).join(
+            (item.element.closest(".or-repeat") ? ` {${item.ind}}` : "") +
+              " --> "
+          )
+        )}</span>\n`;
+
+        if (item.children) {
+          const childPrefix = prefix + (isLast ? "    " : "│   ");
+          buildHtml(item.children, childPrefix);
+        }
+      });
+    }
+
+    // Build the HTML content
+    buildHtml(_tocItems);
+
+    // Close the <pre> tag and add the closing HTML tags
+    htmlContent += "</pre></body></html>";
+
+    // Write the HTML content to the new window
+    newWindow.document.write(htmlContent);
+    newWindow.document.close();
+  } else {
+    console.error("Failed to open a new window.");
+  }
 }

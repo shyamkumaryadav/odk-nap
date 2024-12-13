@@ -14,6 +14,7 @@ import {
   setupLocalStorage,
   add_now,
   csvToXml,
+  printTOCScore,
 } from "./utils";
 import scoreModule from "./score";
 import itemsetModule from "./dbitemset";
@@ -588,6 +589,7 @@ export async function init(
 
   // add score module
   form.score = form.addModule(scoreModule);
+  form.score.init();
   form.dbitemset = form.addModule(itemsetModule);
   form.dbitemset.init();
   document.title = form.surveyName;
@@ -618,7 +620,25 @@ export async function init(
         add_now(form_logo);
       } else {
         const performTimeConsumingOperation = () => {
-          window.odk_form.score.logTOC();
+          const li: string[] = [];
+          form.repeats.optionWrapperContainers.forEach((name: string) => {
+            li.push(
+              `${name}: ${form.view.$.find(
+                `.or-group[name='${name}'] > h4 > .question-label`
+              ).text()}`
+            );
+          });
+          if (
+            [...form.repeats.optionWrapperContainers]
+              .map((e) => form.model.evaluate(e, "boolean"))
+              .every(Boolean)
+          )
+            printTOCScore();
+          else
+            alert(
+              "Please complete the questions which is in repeat\n" +
+                li.join("\n")
+            );
         };
 
         if ("requestIdleCallback" in window) {
