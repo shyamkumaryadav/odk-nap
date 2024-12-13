@@ -596,19 +596,19 @@ export async function init(
 
   window.odk_form = form;
 
-  // add TOC click to expand all details
-  const toc = document.querySelector<HTMLElement>("#toc-toggle");
-  if (toc) {
-    toc.addEventListener("click", () => {
-      form.pages.$toc
-        .find("details")
-        .each((_i: number, element: HTMLDetailsElement) => {
-          if (element.querySelector("details")) {
-            element.setAttribute("open", "true");
-          }
-        });
-    });
-  }
+  // // add TOC click to expand all details
+  // const toc = document.querySelector<HTMLElement>("#toc-toggle");
+  // if (toc) {
+  //   toc.addEventListener("click", () => {
+  //     form.pages.$toc
+  //       .find("details")
+  //       .each((_i: number, element: HTMLDetailsElement) => {
+  //         if (element.querySelector("details")) {
+  //           element.setAttribute("open", "true");
+  //         }
+  //       });
+  //   });
+  // }
 
   // add date in 'ISO 8601' format and log the all question
   const form_logo = document.querySelector<HTMLElement>("section.form-logo");
@@ -635,11 +635,13 @@ export async function init(
               .every(Boolean)
           )
             printTOCScore();
-          else
+          else {
+            printTOCScore();
             alert(
               "Please complete the questions which is in repeat\n" +
                 li.join("\n")
             );
+          }
         };
 
         if ("requestIdleCallback" in window) {
