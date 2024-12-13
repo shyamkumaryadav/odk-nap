@@ -619,6 +619,7 @@ export async function init(
       if (event.ctrlKey) {
         add_now(form_logo);
       } else {
+        if (!form.score.active) return;
         const performTimeConsumingOperation = () => {
           const li: string[] = [];
           form.repeats.optionWrapperContainers.forEach((name: string) => {

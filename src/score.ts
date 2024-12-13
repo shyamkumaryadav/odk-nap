@@ -39,12 +39,23 @@ export default {
   // its type here improves intellisense.
   form: {} as typeof Form,
 
+  /**
+   * @type {boolean}
+   * Whether the score module is active.
+   */
+  active: false,
+
   init() {
     if (!this.form) {
       throw new Error(
         "Score module not correctly instantiated with form property."
       );
     }
+    this.active =
+      this.form.model.evaluate(
+        "boolean(sum(/model/instance/root/item/jr:score))",
+        "boolean"
+      ) || this.form.view.$.find(".or-appearance-score").length > 0;
   },
 
   getName(el: Element) {
@@ -53,6 +64,7 @@ export default {
       el
         .querySelector("label.contains-ref-target")
         ?.getAttribute("data-contains-ref-target") ||
+      el.getAttribute("data-contains-ref-target") ||
       "";
     return name;
   },
@@ -135,19 +147,23 @@ export default {
       if (!map.has(parentId)) {
         map.set(parentId, []);
       }
-      map.get(parentId)!.push(tocItem);
+      map.get(parentId)?.push(tocItem);
     }
 
     // Second pass: Append child TOC items to their respective parent's 'child' array
     for (const tocItem of tocItems) {
       const parentId = tocItem.tocId;
       if (map.has(parentId)) {
-        tocItem.children = map.get(parentId)!;
+        tocItem.children = map.get(parentId);
       }
     }
 
     return tocItems
-      .filter((item) => !item.element.classList.contains("non-select"))
+      .filter(
+        (item) =>
+          !item.element.classList.contains("non-select") ||
+          item.element.classList.contains("or-appearance-score")
+      )
       .filter((item) => item.name !== "");
   },
 
@@ -220,9 +236,10 @@ export default {
                   : "");
               const value = that.form.model.evaluate(model_name, "string");
 
-              let instanceName = tocItem.element
-                .querySelector("label.contains-ref-target")!
-                .getAttribute("data-items-path")!;
+              let instanceName =
+                tocItem.element
+                  .querySelector("label.contains-ref-target")
+                  ?.getAttribute("data-items-path") || "";
 
               const instanceNameRegex = /instance\('(.*)'\)\/root\/item/;
               const instanceNameMatch = instanceName.match(instanceNameRegex);

@@ -397,7 +397,6 @@ export function printTOCScore() {
 
     _tocItems.forEach((item) => {
       const [suffix, text] = extractSuffixAndText(item.label);
-      console.log({ suffix, text });
       htmlContent += `<tr title="${item.label}"><td><a href="#${item.name}">${suffix}</td><td>${text}</td><td>${item.score}</td><td>${item.max}</td><td>${item.personal}</td><td>${item.max_personal}</td></tr>`;
     });
 
@@ -409,7 +408,7 @@ export function printTOCScore() {
     )} %</td><td>${score}</td><td>${max}</td><td>${personal}</td><td>${max_personal}</td></tr></tfoot></table>`;
 
     htmlContent += `<pre style="line-height: 1rem;background-image: linear-gradient(180deg, #eee 50%, #fff 50%); background-size: 100% 2rem; overflow: auto;">
-    <span><mark><u>Select Multiple</u></mark> {NUMBER} Repet With Number</span>\n`;
+    <p><mark><u>Select Multiple</u></mark> -- {NUMBER} Repet With Number</p><p></p>`;
 
     // Recursive function to build HTML content
     function buildHtml(tocItems: TOC_ITEMS, prefix = ""): void {
