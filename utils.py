@@ -9,6 +9,7 @@ import tempfile
 import shutil
 import subprocess
 import json
+import re
 
 from random import sample, randint, choice, random, shuffle, choices
 
@@ -168,7 +169,21 @@ def get_data(survey, weights=[]):
         instance = item.get("instance", {})
 
         if name is None or data_type == "repeat":
-            continue
+            control = item.get(CONTROL, {})
+            count = control.get("jr:count", "")
+            res = []
+            if count:
+                match = re.search(r"\${([^}]+)}", count)
+                if match:
+                    repeat_name = match.group(1)
+                    if repeat_name in result:
+                        result[repeat_name] = faker.pyint(max_value=randint(1, 9))
+                        for _ in range(result[repeat_name]):
+                            res.append(get_data(item[CHILDREN], weights))
+            else:
+                res = [
+                    get_data(item[CHILDREN], weights),
+                ]
 
         # SELECT QUESTIONS
         if data_type in [SELECT_ALL_THAT_APPLY, SELECT_ONE, RANK]:
@@ -180,7 +195,7 @@ def get_data(survey, weights=[]):
             if data_type == SELECT_ALL_THAT_APPLY:
                 res = " ".join(sample(_choices, randint(0, len(_choices))))
             elif data_type == SELECT_ONE:
-                if item.get("list_name") == "yna" and weights:
+                if item.get("list_name") == "yna" and len(weights) == len(_choices):
                     global show_msg
                     if not show_msg:
                         print(
@@ -222,7 +237,7 @@ def get_data(survey, weights=[]):
 
         # NUMBER QUESTIONS
         elif data_type in "integer":
-            res = faker.pyint(max_value=randint(9999, 9999999))
+            res = faker.pyint(max_value=randint(0, 9999999))
         elif data_type == "decimal":
             res = faker.pydecimal(
                 left_digits=randint(1, 5),
@@ -269,8 +284,10 @@ def get_submission_data(asset_content):
         print("Enter the weights for the select_one question yna")
         weights = []
         for i in ["Yes", "No"]:
-            weights.append(float(input(f"Enter the weight for {i}: ")))
-
+            try:
+                weights.append(float(input(f"Enter the weight for {i}: ")))
+            except ValueError:
+                pass
         result = get_data(survey, weights)
         return result
     raise ValueError("Invalid asset type")
