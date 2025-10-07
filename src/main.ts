@@ -1,6 +1,8 @@
 import event from "enketo-core/src/js/event";
 // @ts-ignore
 import { Form, FormModel } from "enketo-core";
+import calcModule from "enketo-core/src/js/calculate";
+import preloadModule from "enketo-core/src/js/preload";
 import { transform } from "enketo-transformer/web";
 import Papa from "papaparse";
 import "@fontsource/inter";
@@ -17,7 +19,6 @@ import {
   printTOCScore,
 } from "./utils";
 import scoreModule from "./score";
-import itemsetModule from "./dbitemset";
 import {
   addItemsToStore,
   clearStore,
@@ -43,6 +44,33 @@ import {
   STATE_ID,
   DISTRICT_ID,
 } from "./static";
+import { confirm as customConfirm } from "./confirm-dialog";
+
+window._temp_update = calcModule.update;
+window._temp_init = preloadModule.init;
+const _temp_goToTarget = Form.prototype.goToTarget;
+
+// @ts-expect-error
+Form.prototype.goToTarget = function (target, options = {}) {
+  if (target instanceof HTMLElement) {
+    const input = target.querySelector("input, textarea, select");
+    if (input) {
+      const isCompact = input.closest(".or-appearance-compact");
+      if (isCompact) {
+        isCompact.classList.toggle("or-appearance-compact");
+      }
+    }
+  }
+  return _temp_goToTarget.call(this, target, options);
+};
+// Make it available globally if needed
+declare global {
+  interface Window {
+    customConfirm: typeof customConfirm;
+  }
+}
+
+window.customConfirm = customConfirm;
 
 const STATIC_URL: {
   [key in ITEMSET_TABLES_NAME]: string;
@@ -157,6 +185,18 @@ export async function init(
   form_ = new URLSearchParams(window.location.search).get("form") ||
     localStorage.getItem("xform-odk")
 ) {
+  if (new URLSearchParams(window.location.search).has("preload")) {
+    preloadModule.init = () => {
+      console.log("Preloaders disabled.");
+    };
+  }
+  if (new URLSearchParams(window.location.search).has("calculation")) {
+    calcModule.update = () => {
+      console.log("Calculations disabled.");
+    };
+  } else {
+    calcModule.update = window._temp_update;
+  }
   if (!form_) {
     root.innerHTML =
       "set in url `?form=...` or Upload a valid XLS File On <a id='getodk' href='#' class='text-blue-500'>https://staging.xlsform.getodk.org/ <span class='font-bold text-green-600'> And Click on Download XForm to Download the XML File</span></a> <br/>";
@@ -331,13 +371,13 @@ export async function init(
     media: {
       "empty.xml": EMPTY,
       // locations
-      "state.xml": EMPTY,
-      "district.xml": EMPTY,
-      "sub_district.xml": EMPTY,
-      "lgd_ulb_health_hulb.xml": EMPTY,
-      "health_facility.xml": EMPTY,
-      "sub_centre.xml": EMPTY,
-      "session_site.xml": EMPTY,
+      "state.xml": STATE,
+      "district.xml": DISTRICT,
+      "sub_district.xml": SUB_DISTRICT,
+      "lgd_ulb_health_hulb.xml": LGD_ULB_HEALTH_HULB,
+      "health_facility.xml": HEALTH_FACILITY,
+      "sub_centre.xml": SUB_CENTRE,
+      "session_site.xml": SESSION_SITE,
       // DB Location
       "state_id.xml": STATE_ID,
       "district_id.xml": DISTRICT_ID,
@@ -382,6 +422,9 @@ export async function init(
     </label>
     <label class="inline-flex p-4 gap-3" for="score">Real-Time Calculation (Slow)
       <input type="checkbox" id="score" class="ignore" value="show" />
+    </label>
+    <label class="inline-flex p-4 gap-3" for="is_dis">Make it Disable
+      <input type="checkbox" id="is_dis" class="ignore" value="show" />
     </label>
     <br/>
      <button
@@ -580,6 +623,7 @@ export async function init(
       // 'deviceid', 'username', 'email', 'phonenumber', 'simserial', 'subscriberid'
       session: {
         subscriberid: ["govt", "partner"][Math.floor(Math.random() * 2)],
+        // username: 1,
       },
     },
     {}
@@ -590,8 +634,8 @@ export async function init(
   // add score module
   form.score = form.addModule(scoreModule);
   form.score.init();
-  form.dbitemset = form.addModule(itemsetModule);
-  form.dbitemset.init();
+  // form.dbitemset = form.addModule(itemsetModule);
+  // form.dbitemset.init();
   document.title = form.surveyName;
 
   window.odk_form = form;
@@ -752,6 +796,51 @@ export async function init(
     localStorage.setItem("score", score.checked ? "true" : "false");
   });
 
+  const is_dis = document.querySelector<HTMLInputElement>("#is_dis")!;
+  is_dis.checked = localStorage.getItem("is_dis") === "true";
+  if (is_dis.checked) {
+    form.view.$.find("input, select, textarea").prop("disabled", true);
+  }
+  is_dis.addEventListener("change", () => {
+    localStorage.setItem("is_dis", is_dis.checked ? "true" : "false");
+    window.location.reload();
+  });
+  //
+  //
+  //
+  //
+  document.addEventListener("geo-detection-start", () => {
+    console.log("geo-detection-start");
+  });
+  document.addEventListener("geo-detection-end", () => {
+    console.log("geo-detection-end");
+    // need to check if field has invaild constrant if yes show error message & reset input value
+  });
+  document.addEventListener("geo-detection-success", () => {
+    console.log("geo-detection-success");
+  });
+  document.addEventListener("geo-detection-error", (event) => {
+    const errorMessages = {
+      geo: "Unable to detect your location. Please ensure that your browser has location services enabled.",
+      geo_permission: "Please allow location access to continue.",
+      geo_position_unavailable: "Unable to detect your location.",
+      geo_timeout: "Unable to detect your location. Please try again.",
+    };
+    const { PERMISSION_DENIED, POSITION_UNAVAILABLE, TIMEOUT } =
+      GeolocationPositionError;
+    // PERMISSION_DENIED
+    if (event.detail.code === PERMISSION_DENIED)
+      console.error(errorMessages.geo_permission);
+    // POSITION_UNAVAILABLE
+    else if (event.detail.code === POSITION_UNAVAILABLE)
+      console.error(errorMessages.geo_position_unavailable);
+    // TIMEOUT
+    else if (event.detail.code === TIMEOUT)
+      console.error(errorMessages.geo_timeout);
+    // UNKNOWN_ERROR or Browser doesn't support Geolocation
+    else console.error("error: ", event.detail.message || errorMessages.geo);
+  });
+
   document.getElementById("load_local_db")!.addEventListener("click", () => {
     Promise.all(
       window.confirm("Are you sure you want to clear local store?")
@@ -766,6 +855,14 @@ export async function init(
   });
 
   document.addEventListener("xforms-value-changed", () => {
+    if (window.odk_form) {
+      const escapedXmlContent = new Option(window.odk_form.getDataStr())
+        .innerHTML;
+      const pre = document.querySelector("#odk_debug_data_xml pre");
+      if (pre) {
+        pre.innerHTML = escapedXmlContent;
+      }
+    }
     if (score.checked) {
       const { score, total } = window.odk_form.score.getScore().reduce(
         (

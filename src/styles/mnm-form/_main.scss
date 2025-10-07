@@ -16,8 +16,8 @@
 .or,
 .or-group {
   > h4 {
-    font-size: 18px;
-    font-weight: bold;
+    font-size: 22px;
+    font-weight: bolder;
     color: $text-primary-color;
     margin-top: 0px;
     margin-bottom: 0px;
@@ -96,7 +96,7 @@ an input element. */
 .question {
   display: block;
   margin: 0px;
-  padding-top: 20px;
+  padding-top: 10px;
   border: none;
   position: relative;
 }
@@ -175,6 +175,52 @@ input elements of type "radio" and "checkbox" when they are in focus or checked.
   line-height: 1;
 }
 
+.or-repeat {
+  padding-top: 10px;
+}
+
+.or-repeat > .question:nth-child(2) {
+  padding-top: 0px;
+}
+
 .or-repeat .repeat-number {
   display: none;
+}
+
+.or-repeat:nth-child(odd) {
+  background-color: $repeat-odd-bg;
+}
+
+.or-repeat .repeat-buttons {
+  margin-top: 0px;
+  justify-content: center;
+}
+
+.or-repeat .remove {
+  display: flex;
+  align-items: center;
+}
+.icon-minus {
+  $encoded-color: "%23#{str-slice(inspect($brand-primary-color), 2)}"; // Gets "#FF0000" and strips "#"
+
+  $svg: '<svg viewBox="0 0 26 26" fill="' + $encoded-color +
+    '" xmlns="http://www.w3.org/2000/svg"><path d="M18.2082 4.66634V5.70801H16.1248V4.66634H9.87484V5.70801H7.7915V4.66634C7.7915 4.11381 8.011 3.5839 8.4017 3.1932C8.7924 2.8025 9.3223 2.58301 9.87484 2.58301H16.1248C16.6774 2.58301 17.2073 2.8025 17.598 3.1932C17.9887 3.5839 18.2082 4.11381 18.2082 4.66634Z" /><path d="M21.3333 6.75H4.66667C4.3904 6.75 4.12545 6.85975 3.9301 7.0551C3.73475 7.25045 3.625 7.5154 3.625 7.79167C3.625 8.06793 3.73475 8.33289 3.9301 8.52824C4.12545 8.72359 4.3904 8.83333 4.66667 8.83333H5.70833V21.3333C5.70833 21.8859 5.92783 22.4158 6.31853 22.8065C6.70923 23.1972 7.23913 23.4167 7.79167 23.4167H18.2083C18.7609 23.4167 19.2908 23.1972 19.6815 22.8065C20.0722 22.4158 20.2917 21.8859 20.2917 21.3333V8.83333H21.3333C21.6096 8.83333 21.8746 8.72359 22.0699 8.52824C22.2653 8.33289 22.375 8.06793 22.375 7.79167C22.375 7.5154 22.2653 7.25045 22.0699 7.0551C21.8746 6.85975 21.6096 6.75 21.3333 6.75ZM11.9583 18.2083C11.9583 18.4846 11.8486 18.7496 11.6532 18.9449C11.4579 19.1403 11.1929 19.25 10.9167 19.25C10.6404 19.25 10.3754 19.1403 10.1801 18.9449C9.98475 18.7496 9.875 18.4846 9.875 18.2083V11.9583C9.875 11.6821 9.98475 11.4171 10.1801 11.2218C10.3754 11.0264 10.6404 10.9167 10.9167 10.9167C11.1929 10.9167 11.4579 11.0264 11.6532 11.2218C11.8486 11.4171 11.9583 11.6821 11.9583 11.9583V18.2083ZM16.125 18.2083C16.125 18.4846 16.0153 18.7496 15.8199 18.9449C15.6246 19.1403 15.3596 19.25 15.0833 19.25C14.8071 19.25 14.5421 19.1403 14.3468 18.9449C14.1514 18.7496 14.0417 18.4846 14.0417 18.2083V11.9583C14.0417 11.6821 14.1514 11.4171 14.3468 11.2218C14.5421 11.0264 14.8071 10.9167 15.0833 10.9167C15.3596 10.9167 15.6246 11.0264 15.8199 11.2218C16.0153 11.4171 16.125 11.6821 16.125 11.9583V18.2083Z"/></svg>';
+  $svg-url: "data:image/svg+xml," + $svg;
+
+  background: url($svg-url) no-repeat center center;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.icon-plus {
+  $encoded-color: "%23#{str-slice(inspect($brand-primary-color), 2)}"; // Strip "#"
+
+  $svg: '<svg viewBox="0 0 24 24" fill="' + $encoded-color +
+    '" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1.25C6.063 1.25 1.25 6.063 1.25 12S6.063 22.75 12 22.75S22.75 17.937 22.75 12S17.937 1.25 12 1.25M12.75 8a.75.75 0 0 0-1.5 0v3.25H8a.75.75 0 0 0 0 1.5h3.25V16a.75.75 0 0 0 1.5 0v-3.25H16a.75.75 0 0 0 0-1.5h-3.25z"/></svg>';
+
+  $svg-url: "data:image/svg+xml," + $svg;
+
+  background: url($svg-url) no-repeat center center;
+  width: 1.5rem;
+  height: 1.5rem;
 }

@@ -1,4 +1,4 @@
-.geopicker {
+.datetimepicker {
   &-widget {
     position: relative;
     &-toggle-button {
@@ -9,15 +9,11 @@
       cursor: pointer;
       color: $neutral-Gray-200;
     }
+    &-input {
+      padding-right: 26px !important;
+    }
   }
-  &-widget-input {
-    padding-right: 26px !important;
+  &-controls {
+    justify-content: space-between;
   }
-
-  // form-guidance
-}
-
-.or-appearance-accuracy-alert .or-form-guidance {
-  display: none;
-  visibility: hidden;
 }

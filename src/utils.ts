@@ -138,9 +138,11 @@ export function setupDropdown(element: HTMLDivElement) {
 const debug_ = document.querySelector<HTMLDivElement>("#debug")!;
 const genModelDebug = (
   title: string,
+  id: string,
   onToggle: (pre: HTMLPreElement, event: Event) => void
 ) => {
   const details = document.createElement("details");
+  details.setAttribute("id", id);
   const colors = [
     "bg-red-100",
     "bg-yellow-100",
@@ -185,14 +187,14 @@ const genModelDebug = (
 
 export function xmlDebug() {
   debug_.innerHTML = "";
-  genModelDebug("XML Model", (pre, event) => {
+  genModelDebug("XML Model", "odk_debug_model_xml", (pre, event) => {
     const details = event.target as HTMLDetailsElement;
     if (details.open && window.xform) {
       const escapedXmlContent = new Option(window.xform.model).innerHTML;
       pre.innerHTML = escapedXmlContent;
     }
   });
-  genModelDebug("ODK Data", (pre, event) => {
+  genModelDebug("ODK Data", "odk_debug_data_xml", (pre, event) => {
     const details = event.target as HTMLDetailsElement;
     if (details.open && window.odk_form) {
       const escapedXmlContent = new Option(window.odk_form.getDataStr())
@@ -201,14 +203,14 @@ export function xmlDebug() {
       pre.innerHTML = escapedXmlContent;
     }
   });
-  genModelDebug("Form XML", (pre, event) => {
+  genModelDebug("Form XML", "odk_debug_form_xml", (pre, event) => {
     const details = event.target as HTMLDetailsElement;
     if (details.open && window.xform) {
       const escapedXmlContent = new Option(window.xform.x_form).innerHTML;
       pre.innerHTML = escapedXmlContent;
     }
   });
-  genModelDebug("Form Score", (pre, event) => {
+  genModelDebug("Form Score", "odk_debug_score", (pre, event) => {
     const details = event.target as HTMLDetailsElement;
     if (details.open) {
       if (window.odk_form.score)

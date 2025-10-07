@@ -1,9 +1,12 @@
-// @import "./geo/geopicker.scss";
+@import "./geo/geopicker.scss";
 @import "./date/datepicker.scss";
 @import "./table/tablewidget.scss";
+@import "./repeat/repeat.scss";
+@import "./datetime/datetimepicker.scss";
 
 // Widgets
 @import "enketo-core/src/widget/columns/columns.scss";
-@import "enketo-core/src/widget/geo/geopicker.scss";
+// @import "enketo-core/src/widget/geo/geopicker.scss";
 @import "enketo-core/src/widget/comment/commentwidget.scss";
 @import "enketo-core/src/widget/range/range-widget.scss";
+@import "enketo-core/src/widget/rank/rank-widget.scss";

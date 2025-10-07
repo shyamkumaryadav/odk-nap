@@ -7,7 +7,7 @@ import {
 } from "enketo-core/src/js/dom-utils";
 import events from "enketo-core/src/js/event";
 
-import { getItemsFromStore } from "./db";
+import { getItemsFromStore, getItemsFromAPI } from "./db";
 
 const DB_ITEMSET_TEMPLATE = "local_db";
 
@@ -213,7 +213,7 @@ export default {
       };
       const parentValue =
         (detail.parent_value &&
-          (that.form.model.evaluate(detail.parent_value, "number") || -1)) ||
+          (that.form.model.evaluate(detail.parent_value, "number") || 0)) ||
         NaN;
       const message = `Tabel [${detail.instance}] --> ${parentValue}`;
       console.time(message);
@@ -222,46 +222,159 @@ export default {
         .filter((el) => el !== template)
         .forEach((el) => el.remove());
 
-      getItemsFromStore(detail.instance, parentValue).then((instanceItems) => {
-        console.timeEnd(message);
-        // This property allows for more efficient 'itemschanged' detection
-        newItems.length = instanceItems.length;
-        // TODO: This may cause problems for large itemsets. Use md5 instead?
-        newItems.text = instanceItems.map((item) => item.label).join("");
-        if (
-          newItems.length === prevItems.length &&
-          newItems.text === prevItems.text
-        ) {
-          // check if it's has relevent or not
-          return;
-        }
+      if (
+        that.form.model.xml.querySelector("username").innerHTML === "1" &&
+        navigator.onLine
+      ) {
+        getItemsFromAPI(detail.instance, parentValue).then((instanceItems) => {
+          // if (
+          //   template.closest(".question.or-appearance-other") &&
+          //   parentValue
+          // ) {
+          //   instanceItems.push({ name: parentValue, label: "Other" });
+          // }
+          // This property allows for more efficient 'itemschanged' detection
+          newItems.length = instanceItems.length;
+          // TODO: This may cause problems for large itemsets. Use md5 instead?
+          newItems.text = instanceItems.map((item) => item.label).join("");
+          if (
+            newItems.length === prevItems.length &&
+            newItems.text === prevItems.text
+          ) {
+            // check if it's has relevent or not
+            return;
+          }
 
-        data.put(template, "items", newItems);
-        const optionsFragment = document.createDocumentFragment();
-        // sort items based on label A-Z
-        instanceItems.sort((a, b) => {
-          if (a.label < b.label) {
-            return -1;
+          data.put(template, "items", newItems);
+          const optionsFragment = document.createDocumentFragment();
+          // sort items based on label A-Z
+          instanceItems.sort((a, b) => {
+            if (a.label < b.label) {
+              return -1;
+            }
+            if (a.label > b.label) {
+              return 1;
+            }
+            return 0;
+          });
+          instanceItems.forEach((item) => {
+            optionsFragment.appendChild(
+              that.createInput(item.name, item.label)
+            );
+          });
+          template.parentNode.appendChild(optionsFragment);
+          const currentValue = that.form.model.node(context, index).getVal();
+          if (currentValue !== "") {
+            that.form.input.setVal(input, currentValue, events.Change());
           }
-          if (a.label > b.label) {
-            return 1;
+        });
+      } else
+        getItemsFromStore(detail.instance, parentValue).then(
+          (instanceItems) => {
+            if (
+              template.closest(".question.or-appearance-other") &&
+              parentValue
+            ) {
+              instanceItems.push({ name: parentValue, label: "Other" });
+            }
+            console.timeEnd(message);
+            console.log(instanceItems, parentValue, detail.instance);
+
+            // This property allows for more efficient 'itemschanged' detection
+            newItems.length = instanceItems.length;
+            // TODO: This may cause problems for large itemsets. Use md5 instead?
+            newItems.text = instanceItems.map((item) => item.label).join("");
+            if (
+              newItems.length === prevItems.length &&
+              newItems.text === prevItems.text
+            ) {
+              // check if it's has relevent or not
+              return;
+            }
+
+            data.put(template, "items", newItems);
+            const optionsFragment = document.createDocumentFragment();
+            // sort items based on label A-Z
+            instanceItems.sort((a, b) => {
+              if (a.label < b.label) {
+                return -1;
+              }
+              if (a.label > b.label) {
+                return 1;
+              }
+              return 0;
+            });
+            instanceItems.forEach((item) => {
+              optionsFragment.appendChild(
+                that.createInput(item.name, item.label)
+              );
+            });
+            template.parentNode.appendChild(optionsFragment);
+            const currentValue = that.form.model.node(context, index).getVal();
+            if (currentValue !== "") {
+              that.form.input.setVal(input, currentValue, events.Change());
+            }
           }
-          return 0;
-        });
-        instanceItems.forEach((item) => {
-          optionsFragment.appendChild(that.createInput(item.name, item.label));
-        });
-        template.parentNode.appendChild(optionsFragment);
-        const currentValue = that.form.model.node(context, index).getVal();
-        if (currentValue !== "") {
-          that.form.input.setVal(input, currentValue, events.Change());
-        }
-      });
+        );
     });
+  },
+  formatTitle(title: string): string {
+    // Extract abbreviations (2-3 uppercase letters) and special cases like 'MC'
+    const abbreviationList = [
+      ...(title.match(/\b([A-Z]{2,3})\b/g) || []),
+      ...(title.match(/\b([A-Z]{1,3}mc)\b/gi) || []),
+      "phc",
+      "uphc",
+      "rhtc",
+    ].map((abbr) => abbr.toLowerCase());
+
+    // Function to capitalize words (first letter uppercase, rest lowercase)
+    const capitalizeWord = (word: string): string => {
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    };
+
+    // Function to format abbreviations in uppercase
+    const formatAbbreviation = (word: string): string => {
+      return word.toUpperCase();
+    };
+
+    // Function to process matches and apply formatting rules
+    const processMatch = (text: string): string => {
+      return text
+        .split(/\s+/)
+        .map((word) =>
+          abbreviationList.includes(word.toLowerCase())
+            ? formatAbbreviation(word)
+            : capitalizeWord(word)
+        )
+        .join(" ");
+    };
+
+    // Create a regex pattern to match abbreviations or words
+    const pattern = new RegExp(
+      `\\b(?:${abbreviationList
+        .map((abbr) => abbr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        .join("|")}|[A-Za-z0-9]+)\\b`,
+      "g"
+    );
+
+    // Replace function for formatting
+    const replaceFunc = (match: string): string => {
+      return processMatch(match);
+    };
+
+    // Format the title
+    let formattedTitle = title.replace(pattern, replaceFunc);
+
+    // Ensure the first letter is always capitalized
+    formattedTitle =
+      formattedTitle.charAt(0).toUpperCase() + formattedTitle.slice(1);
+
+    return formattedTitle.trim();
   },
   createInput(value: number, label: string) {
     const option = document.createElement("option");
-    option.textContent = label;
+    option.textContent = this.formatTitle(label);
     option.value = String(value);
     return option;
   },

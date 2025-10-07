@@ -17,6 +17,10 @@ export default defineConfig({
         replacement: "./enketo.config.ts",
       },
       {
+        find: "enketo/translator",
+        replacement: "./src/translator.ts",
+      },
+      {
         find: "leaflet.gridlayer.googlemutant",
         replacement:
           "leaflet.gridlayer.googlemutant/dist/Leaflet.GoogleMutant.js",

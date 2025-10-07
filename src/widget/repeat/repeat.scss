@@ -1,0 +1,64 @@
+.or-group.or-appearance-no-collapse {
+  > h4 {
+    position: relative;
+    cursor: pointer;
+    // border: red 1px solid;
+
+    &::before {
+      content: "";
+      background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="4,2 8,6 4,10" stroke="black" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+      background-repeat: no-repeat;
+      background-position: center; // ✅ This is the key
+      background-size: 1rem 1rem;
+      // border: green 1px solid;
+      width: 1rem;
+      height: 1rem;
+      position: absolute;
+      right: 0px;
+      top: 50%;
+      transform: translateY(-50%) rotate(90deg);
+      transform-origin: center;
+      transition: transform 0.3s ease;
+    }
+  }
+
+  &.or-appearance-compact:not(:first-child) {
+    > h4 {
+      &::before {
+        transform: translateY(-50%) rotate(270deg);
+      }
+
+      ~ * {
+        // !important is added to battle pages rules
+        display: none !important;
+      }
+    }
+  }
+}
+
+.pages .or-appearance-page-only {
+  display: none;
+}
+
+@function str-repeat($string, $times) {
+  $result: "";
+  @for $j from 1 through $times {
+    $result: #{$result}#{$string};
+  }
+  @return $result;
+}
+
+@for $i from 1 through 6 {
+  #{str-repeat(".or-group ", $i)} > h4 .active::before {
+    content: none;
+  }
+}
+
+.or-appearance-hide-ten {
+  &:nth-of-type(1) .repeat-buttons {
+    display: none;
+  }
+  &:nth-of-type(10) ~ .or-repeat-info {
+    display: none;
+  }
+}

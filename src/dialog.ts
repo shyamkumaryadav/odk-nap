@@ -32,9 +32,16 @@ function alert(content: string | DialogContentObj) {
  */
 function confirm(content: string | DialogContentObj) {
   if (typeof content === "object") {
-    content = content.msg ?? content.message;
+    return Promise.resolve(
+      window.customConfirm({
+        message: content.message ?? content.msg ?? "",
+        title: content.heading ?? "Confirm",
+        confirmText: "Delete",
+        cancelText: "Cancel",
+      })
+    );
   }
-  return Promise.resolve(window.confirm(content));
+  return Promise.resolve(window.customConfirm(content));
 }
 
 /**

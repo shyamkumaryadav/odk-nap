@@ -47,6 +47,10 @@ const dbPromise = openDB<IDBSchema>(DB_NAME, DB_VERSION, {
           keyPath: "name", // Use the 'name' property as the primary key
         });
         store.createIndex("parent_id", "parent_id", { unique: false });
+        if (tableName === ITEMSET_TABLES.SESSION_SITE) {
+          // @ts-ignore
+          store.createIndex("subcenter_id", "subcenter_id", { unique: false });
+        }
       }
     });
   },
@@ -76,8 +80,16 @@ export const getItemsFromStore = async (
   const db = await dbPromise;
   const tx = db.transaction(tableName);
   const store = tx.store;
-
   const index = !isNaN(parent_id) ? store.index("parent_id") : store;
+  if (tableName === ITEMSET_TABLES.SESSION_SITE && !isNaN(parent_id)) {
+    // @ts-ignore
+    const sub_index = store.index("subcenter_id").getAll(parent_id);
+    const other_index = index.getAll(parent_id);
+    return Promise.all([sub_index, other_index]).then(([a, b]) =>
+      // @ts-ignore
+      a.concat(b.filter((item) => !item.subcenter_id))
+    );
+  }
   return !isNaN(parent_id) ? index.getAll(parent_id) : index.getAll();
 };
 
@@ -87,4 +99,23 @@ export const clearStore = async (tableName: ITEMSET_TABLES_NAME) => {
   const store = tx.store;
   store.clear();
   await tx.done;
+};
+
+export const getItemsFromAPI = async (
+  tableName: ITEMSET_TABLES_NAME,
+  parent_id: ITEMSET_KEY
+) => {
+  console.log("FETCHING", tableName, parent_id);
+  const response = await fetch(
+    `http://localhost:8000/api/uwin_location/${tableName}/` +
+      (!isNaN(parent_id) ? `${parent_id}/` : "?formate=json"),
+    {
+      headers: {
+        "Content-Type": "application/json",
+        // Authorization: "Basic " + btoa("admin:as"),
+        Authorization: "Basic " + btoa("9999912345:As99999"),
+      },
+    }
+  );
+  return response.json();
 };

@@ -18,6 +18,7 @@ from pyxform.constants import (
     SELECT_ONE,
     RANK,
     ID_STRING,
+    REPEAT,
     VERSION,
     NAME,
     CHILDREN,
@@ -29,8 +30,6 @@ from pyxform.constants import (
 from xmltodict import unparse
 from faker import Faker
 from xml.dom import minidom
-
-from tabulate import tabulate
 
 from conf import ASSETS_DIR, SUPPORTED_EXCEL_EXT, TIME_ZONE, TEXT, ASSET_FILE
 
@@ -50,7 +49,7 @@ def get_node_score(node):
         if node.hasAttribute("score"):
             node_text = (
                 node.firstChild.nodeValue.strip()
-                if (node.firstChild and node.firstChild.nodeType == node.TEXT_NODE)
+                if (node.firstChild and node.firstChild.nodeType == node.TEXT_NODE) # noqa
                 else ""
             )
             if node.getAttribute("score") == node_text:
@@ -168,22 +167,8 @@ def get_data(survey, weights=[]):
         res = item.get("default", "")
         instance = item.get("instance", {})
 
-        if name is None or data_type == "repeat":
-            control = item.get(CONTROL, {})
-            count = control.get("jr:count", "")
-            res = []
-            if count:
-                match = re.search(r"\${([^}]+)}", count)
-                if match:
-                    repeat_name = match.group(1)
-                    if repeat_name in result:
-                        result[repeat_name] = faker.pyint(max_value=randint(1, 9))
-                        for _ in range(result[repeat_name]):
-                            res.append(get_data(item[CHILDREN], weights))
-            else:
-                res = [
-                    get_data(item[CHILDREN], weights),
-                ]
+        if name is None and data_type == "calculate":
+            continue
 
         # SELECT QUESTIONS
         if data_type in [SELECT_ALL_THAT_APPLY, SELECT_ONE, RANK]:
@@ -195,7 +180,7 @@ def get_data(survey, weights=[]):
             if data_type == SELECT_ALL_THAT_APPLY:
                 res = " ".join(sample(_choices, randint(0, len(_choices))))
             elif data_type == SELECT_ONE:
-                if item.get("list_name") == "yna" and len(weights) == len(_choices):
+                if item.get("list_name") == "yna" and weights:
                     global show_msg
                     if not show_msg:
                         print(
@@ -237,7 +222,7 @@ def get_data(survey, weights=[]):
 
         # NUMBER QUESTIONS
         elif data_type in "integer":
-            res = faker.pyint(max_value=randint(0, 9999999))
+            res = faker.pyint(max_value=randint(9999, 9999999))
         elif data_type == "decimal":
             res = faker.pydecimal(
                 left_digits=randint(1, 5),
@@ -268,6 +253,26 @@ def get_data(survey, weights=[]):
         elif data_type == "group":
             res = get_data(item[CHILDREN], weights)
 
+        elif data_type == REPEAT:
+            control = item.get(CONTROL, {})
+            control_count = control.get("jr:count", "")
+            match = re.search(r"\${([^}]+)}", control_count)
+            res = []
+            if match:
+                repeat_name = match.group(1)
+                repeat_count = 0
+                if control_count == f"${{{repeat_name}}}":
+                    result[repeat_name] = randint(1, 4)
+                    repeat_count = result[repeat_name]
+                elif control_count == f"count-selected(${{{repeat_name}}})":
+                    print(f"Count Selected: {result[repeat_name]}")
+                    repeat_count = len(result[repeat_name].split())
+                for _ in range(repeat_count):
+                    res.append(get_data(item[CHILDREN], choices))
+            else:
+                print(f"Control Count not found in {control_count}")
+                for _ in range(randint(1, 2)):
+                    res.append(get_data(item.get(CHILDREN), choices))
         res = item.get("default", res)
         if instance:
             res = {
@@ -281,14 +286,7 @@ def get_data(survey, weights=[]):
 def get_submission_data(asset_content):
     if asset_content.get(TYPE) == SURVEY:
         survey = asset_content["children"]
-        print("Enter the weights for the select_one question yna")
-        weights = []
-        for i in ["Yes", "No"]:
-            try:
-                weights.append(float(input(f"Enter the weight for {i}: ")))
-            except ValueError:
-                pass
-        result = get_data(survey, weights)
+        result = get_data(survey)
         return result
     raise ValueError("Invalid asset type")
 
@@ -313,7 +311,7 @@ def prepare_submission(asset):
     )
     xml = unparse(
         {
-            asset.get(NAME): data,
+            asset.get(ID_STRING): data,
         },
         pretty=True,
     )
@@ -329,30 +327,36 @@ def generate_mock_response(asset, count=1, asset_folder=None):
         xml, _uuid = prepare_submission(asset)
         res_codes.append(_uuid)
         if asset_folder:
+            # MOCK FOLDER
+            MOCK_FOLDER = os.path.join(
+                asset_folder,
+                "MOCK",
+            )
+            if not os.path.exists(MOCK_FOLDER):
+                os.makedirs(MOCK_FOLDER)
             with open(
                 os.path.join(
-                    asset_folder,
-                    f"mock-{_uuid}.xml",
+                    MOCK_FOLDER,
+                    f"{_uuid}.xml",
                 ),
                 "w+",
             ) as f:
                 f.write(xml)
-                print(f"Generated mock-{_uuid}.xml")
-                score = get_score(xml)
+                print(f"Generated {_uuid}.xml")
+                # score = get_score(xml)
 
-                print(
-                    tabulate(
-                        [
-                            {
-                                **d,
-                                "score (%)": f"{d['score']*100/d['total']:.01f} %",
-                            }
-                            for d in score
-                        ],
-                        headers="keys",
-                        tablefmt="psql",
-                    )
-                )
+                # print(
+                #     tabulate(
+                #         [
+                #             {
+                #                 **d,
+                #             }
+                #             for d in score
+                #         ],
+                #         headers="keys",
+                #         tablefmt="psql",
+                #     )
+                # )
     mock_end = time.time()
     mock_time = mock_end - mock_start
     print(

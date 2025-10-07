@@ -8,4 +8,18 @@ declare global {
     loadData: () => void;
     dumpData: () => void;
   }
+  interface Document {
+    //adds definition to Document, but you can do the same with HTMLElement
+    addEventListener<K extends keyof ECustomEventMap>(
+      type: K,
+      listener: (this: Document, ev: ECustomEventMap[K]) => void
+    ): void;
+    dispatchEvent<K extends keyof ECustomEventMap>(
+      ev: ECustomEventMap[K]
+    ): void;
+    removeEventListener<K extends keyof ECustomEventMap>(
+      type: K,
+      listener: (this: Document, ev: ECustomEventMap[K]) => void
+    ): void;
+  }
 }

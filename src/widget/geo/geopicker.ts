@@ -86,6 +86,25 @@ class GeopickerExtended extends Widget {
       return false;
     });
 
+    this.element.addEventListener("xforms-value-changed", (event: Event) => {
+      if (
+        event.target instanceof HTMLInputElement &&
+        this.question.classList.contains("or-appearance-accuracy-alert") &&
+        this.question.classList.contains("invalid-constraint")
+      ) {
+        const details = this.question.querySelector(
+          ".or-hint.or-form-guidance"
+        );
+        const summary = details.querySelector("summary");
+        summary.remove();
+        this.originalInputValue = "";
+        this.question.dispatchEvent(
+          events.GeoDetectionError(details.innerText.trim())
+        );
+        details.insertBefore(summary, details.firstChild);
+      }
+    });
+
     // Set the current loaded value into the widget
     this.update();
 
@@ -115,7 +134,7 @@ class GeopickerExtended extends Widget {
       this.question.dispatchEvent(events.GeoDetectionStart());
       return getCurrentPosition(options)
         .then((result: EGeolocationPosition) => {
-          this.question.dispatchEvent(events.GeoDetectionSuccess(result));
+          this.originalInputValue = "";
           this.originalInputValue = result.geopoint;
           return result;
         })
@@ -142,6 +161,7 @@ class GeopickerExtended extends Widget {
 
   reset() {
     this.originalInputValue = "";
+    this.value = "";
   }
 
   disable() {
@@ -155,16 +175,14 @@ class GeopickerExtended extends Widget {
   }
 
   get value() {
-    return this.question.querySelector(".geopicker-widget-input")!.value;
+    return this.$widgetI.value;
   }
 
   set value(_value) {
-    let value = "";
     if (_value) {
       const [lat, long] = _value.split(" ");
-      value = `Latitude:${lat} Longitude:${long}`;
-    }
-    this.question.querySelector(".geopicker-widget-input")!.value = value;
+      this.$widgetI.value = `Latitude:${lat} Longitude:${long}`;
+    } else this.$widgetI.value = "";
   }
 }
 

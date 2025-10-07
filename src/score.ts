@@ -197,8 +197,8 @@ export default {
             const maxCount =
               that.form.model.evaluate(`count(${tocItem.name})`, "number") || 1;
 
-            tocItem.score = score / maxCount;
-            tocItem.personal = personal / maxCount;
+            tocItem.score = Math.round(score / maxCount);
+            tocItem.personal = Math.round(personal / maxCount);
             tocItem.max = max / maxCount;
             tocItem.max_personal = max_personal / maxCount;
 
