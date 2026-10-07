@@ -1,3 +1,10 @@
+# Python
+.venv/
+.uv-cache/
+.uv-python/
+__pycache__/
+*.py[cod]
+.env
 # Logs
 logs
 *.log

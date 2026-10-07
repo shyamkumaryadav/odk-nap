@@ -1,0 +1,25 @@
+[project]
+name = "odk-nap"
+version = "0.1.0"
+description = "ODK form conversion and mock submission tools"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "pyxform>=4.0.0",
+    "ptpython",
+    "watchdog==4.0.0",
+    "pandas>=2.3.3",
+    "openpyxl>=3.1.5",
+    "faker",
+    "lorem",
+    "dicttoxml",
+    "xmltodict",
+    "django",
+    "numpy>=2.3.3",
+    "tabulate",
+    "pytz",
+    "xlrd",
+]
+
+[tool.uv]
+package = false
