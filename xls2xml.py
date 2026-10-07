@@ -1,5 +1,6 @@
 import os
 import time
+import logging
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -7,29 +8,37 @@ from watchdog.events import FileSystemEventHandler
 from conf import XLS_DIR, SUPPORTED_EXCEL_EXT
 from utils import xls2xml, json_file
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+
+logger = logging.getLogger(__name__)
+
 
 class MyHandler(FileSystemEventHandler):
     def on_modified(self, event):
-        if os.path.splitext(event.src_path)[1][
-            1:
-        ] in SUPPORTED_EXCEL_EXT and not event.src_path.startswith("~$"):
+        if (
+            not event.is_directory
+            and os.path.splitext(event.src_path)[1][1:].lower() in SUPPORTED_EXCEL_EXT
+            and not os.path.basename(event.src_path).startswith("~$")
+        ):
             try:
                 response = xls2xml(event.src_path)
 
-                print(response["message"])
+                logger.info(response["message"])
+                for warning in response["warnings"]:
+                    logger.warning(f"Warning: {warning}")
 
                 if response["code"] != 999:
+                    json_file()
                     if os.name == "nt":
                         import winsound
 
-                        json_file()
-
                         winsound.MessageBeep(type=winsound.MB_OK)
             except Exception as e:
-                print("Error: ", e)
+                logger.error(f"Error: {e}")
 
 
 if __name__ == "__main__":
+    logger.info("Starting...")
     event_handler = MyHandler()
 
     observer = Observer()
@@ -44,4 +53,4 @@ if __name__ == "__main__":
         observer.stop()
         observer.join()
     finally:
-        print("Exiting...")
+        logger.info("Exiting...")

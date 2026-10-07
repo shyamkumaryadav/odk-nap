@@ -6,7 +6,6 @@ import pytz
 import uuid
 import time
 import tempfile
-import shutil
 import subprocess
 import json
 import re
@@ -27,6 +26,8 @@ from pyxform.constants import (
     CONTROL,
     APPEARANCE,
 )
+from pyxform.xls2xform import convert
+from pyxform.validators.odk_validate import ODK_VALIDATE_PATH
 from xmltodict import unparse
 from faker import Faker
 from xml.dom import minidom
@@ -365,51 +366,62 @@ def generate_mock_response(asset, count=1, asset_folder=None):
 
 
 def xls2xml(xls_path):
-    if (
-        xls_path
-        and os.path.exists(xls_path)
-        and os.path.splitext(xls_path)[1][1:] in SUPPORTED_EXCEL_EXT
-    ):
-        temp_dir = tempfile.mkdtemp()
-        filename_ = os.path.basename(xls_path)
-        filename, _ = os.path.splitext(filename_)
-        xls_form_path = os.path.join(temp_dir, filename)
-        shutil.copy(xls_path, xls_form_path)
-        start_xml = time.time()
+    start_xml = time.time()
+    response = {"code": 999, "message": None, "warnings": []}
+    try:
+        if not xls_path or not os.path.isfile(xls_path):
+            raise ValueError(f"Excel file does not exist: {xls_path}")
+        if os.path.splitext(xls_path)[1][1:].lower() not in SUPPORTED_EXCEL_EXT:
+            raise ValueError(f"Unsupported Excel file: {xls_path}")
 
+        filename = os.path.splitext(os.path.basename(xls_path))[0]
         asset_folder = os.path.join(ASSETS_DIR, filename)
-        if not os.path.exists(asset_folder):
-            os.makedirs(asset_folder)
-
+        os.makedirs(asset_folder, exist_ok=True)
         output_path = os.path.join(asset_folder, ASSET_FILE)
         print("Converting...'%s' to XForm" % (filename))
-        response = {"code": None, "message": None, "warnings": []}
-
-        out = subprocess.call(
-            [
-                "xls2xform",
-                "--pretty_print",
-                # "--skip_validate",
-                # "--odk_validate",
-                # "--enketo_validate",
-                xls_path,
-                output_path,
-            ],
+        result = convert(
+            xlsform=xls_path,
+            validate=False,
+            pretty_print=True,
         )
+        response["warnings"] = result.warnings
+        # pyxform 4.5 replaces the Java environment on Windows, which can crash
+        # the launcher. Run its bundled validator with the inherited environment.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            validation_path = os.path.join(temp_dir, ASSET_FILE)
+            with open(validation_path, "w", encoding="utf-8") as f:
+                f.write(result.xform)
+            validation = subprocess.run(
+                ["java", "-Djava.awt.headless=true", "-jar",
+                 ODK_VALIDATE_PATH, validation_path],
+                capture_output=True,
+                text=True,
+                errors="replace",
+                timeout=100,
+            )
+            if validation.returncode != 0:
+                details = validation.stderr.strip() or validation.stdout.strip()
+                raise ValueError(
+                    f"ODK Validate failed (exit {validation.returncode}): {details}"
+                )
+            if validation.stderr.strip():
+                response["warnings"].append(validation.stderr.strip())
 
-        end_xml = time.time()
-        response["message"] = f"[{end_xml - start_xml:.1f}s] "
-        if out == 0:
-            response["code"] = 100
-            response["message"] += "Ok!"
-
-            if response["warnings"]:
-                response["code"] = 101
-                response["message"] += "Ok with warnings."
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(result.xform)
+        if result.itemsets is not None:
+            with open(os.path.join(asset_folder, "itemsets.csv"),
+                      "w", encoding="utf-8", newline="") as f:
+                f.write(result.itemsets)
+        if response["warnings"]:
+            response["code"] = 101
+            message = "Ok with warnings."
         else:
-            response["code"] = 999
-            response["message"] += "Error!"
-
+            response["code"] = 100
+            message = "Ok!"
+    except Exception as exc:
+        message = f"Error! {exc}"
+    response["message"] = f"[{time.time() - start_xml:.1f}s] {message}"
     return response
 
 
