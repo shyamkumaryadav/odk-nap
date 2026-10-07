@@ -7,6 +7,8 @@ declare global {
     odk_form?: Form;
     loadData: () => void;
     dumpData: () => void;
+    _temp_update: any;
+    _temp_init: any;
   }
   interface Document {
     //adds definition to Document, but you can do the same with HTMLElement
